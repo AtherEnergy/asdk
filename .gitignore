@@ -1,0 +1,13 @@
+# files
+.DS_Store
+**/.DS_Store
+
+# directories
+**/.vscode/
+**/build/
+**/release/
+**/debug/
+common/
+
+# Infineon cyt2b75 SDK directory
+platform/Infineon/cyt2b75/sdk/
