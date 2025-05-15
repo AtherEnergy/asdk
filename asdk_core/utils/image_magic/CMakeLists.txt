@@ -1,0 +1,10 @@
+file(GLOB_RECURSE SRC *.c)
+LIST(APPEND SRC_LIST ${SRC})
+
+add_custom_target( magic  ALL
+	COMMAND gcc ${SRC} -std=c99 -o magic
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+		COMMENT "Compile Image Magic utils.."
+                VERBATIM )
+#install(FILES ${CMAKE_CURRENT_BINARY_DIR}/magic DESTINATION ${CMAKE_CURRENT_LIST_DIR} PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE)
+

@@ -1,0 +1,116 @@
+{
+    "version": 4,
+    "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 26,
+      "patch": 0
+    },
+    "configurePresets": [
+      {
+        "name": "default",
+        "hidden": true
+      },
+
+      {
+        "name": "blank_project",
+        "inherits": [ "default" ],
+        "displayName": "Blank Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_0_blank_project/",
+            "APP_ELF_NAME": "asdk_example_blank"
+        }
+      },
+      {
+        "name": "blinky",
+        "inherits": [ "default" ],
+        "displayName": "GPIO Blinky Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_1_gpio/exp_1a_blink",
+            "APP_ELF_NAME": "asdk_example_blinky"
+        }
+      },
+      {
+        "name": "button_polling",
+        "inherits": [ "default" ],
+        "displayName": "GPIO Button Polling Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_1_gpio/exp_1b_button_polling",
+            "APP_ELF_NAME": "asdk_example_button_polling"
+        }
+      },
+      {
+        "name": "button_interrupt",
+        "inherits": [ "default" ],
+        "displayName": "GPIO Button Interrupt Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_1_gpio/exp_1c_button_interrupt",
+            "APP_ELF_NAME": "asdk_example_button_interrupt"
+        }
+      },
+      {
+        "name": "timer_periodic",
+        "inherits": [ "default" ],
+        "displayName": "Timer Periodic Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_2_timer/exp_2a_periodic",
+            "APP_ELF_NAME": "asdk_example_timer_periodic"
+        }
+      },
+      {
+        "name": "timer_compare",
+        "inherits": [ "default" ],
+        "displayName": "Timer Compare Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_2_timer/exp_2b_compare",
+            "APP_ELF_NAME": "asdk_example_timer_compare"
+        }
+      },
+      {
+        "name": "timer_capture",
+        "inherits": [ "default" ],
+        "displayName": "Timer Capture Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_2_timer/exp_2c_capture",
+            "APP_ELF_NAME": "asdk_example_timer_capture"
+        }
+      },
+      {
+        "name": "adc_blocking",
+        "inherits": [ "default" ],
+        "displayName": "ADC Blocking Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_3_adc/exp_3a_single_channel",
+            "APP_ELF_NAME": "asdk_example_adc_blocking"
+        }
+      },
+      {
+        "name": "adc_non_blocking",
+        "inherits": [ "default" ],
+        "displayName": "ADC Non-Blocking Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_3_adc/exp_3b_interrupt",
+            "APP_ELF_NAME": "asdk_example_adc_non_blocking"
+        }
+      },
+      {
+        "name": "can_send",
+        "inherits": [ "default" ],
+        "displayName": "CAN Send Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_4_can/exp_4a_send",
+            "APP_ELF_NAME": "asdk_example_can_send"
+        }
+      },
+      {
+        "name": "can_echoback",
+        "inherits": [ "default" ],
+        "displayName": "CAN Echoback Example",
+        "cacheVariables": {
+            "APP_SRC_PATH": "./examples/exp_4_can/exp_4b_echoback",
+            "APP_ELF_NAME": "asdk_example_can_echoback"
+        }
+      }
+      
+    ]
+}    
+    

@@ -1,0 +1,1066 @@
+/*
+Disclaimer:
+
+    The information/code provided by Ather Energy Limited (“Ather”) in
+    this file is for informational purposes only. All information/code in this
+    file is provided in good faith.  However, Ather makes no representation or
+    warranty of any kind, express or implied, regarding the accuracy, adequacy,
+    validity, reliability, availability or completeness of any information/code
+    in the file. Under no circumstances shall Ather have any liability to you
+    for any loss or damage of any kind incurred as a result of reliance on any
+    information/code provided in the file. Your reliance on any Ather’s
+    information/code in the file is solely at your own risk.
+
+    @file
+    asdk_pinmux.c
+
+    @path
+    platform/Infineon/cyt2b75/dal/src/asdk_pinmux.c
+
+    @Created on
+    July 25, 2023
+
+    @Author
+    Ather Energy Limited
+
+    @Copyright
+    Copyright (c) Ather Energy Limited. All rights reserved.
+
+    @brief
+    This file implements the PINMUX module for the CYT2B75 microcontroller.
+
+*/
+
+/*==============================================================================
+
+                           INCLUDE FILES
+
+==============================================================================*/
+
+// dal includes
+#include "asdk_mcu_pins.h" // Defines MCU pins as is
+#include "asdk_gpio.h"     // ASDK GPIO APIs
+#include "asdk_pinmux.h"
+
+// sdk includes
+#include "cy_device_headers.h" // Defines reg. and variant of CYT2B7 series
+#include "gpio/cy_gpio.h"      // CYT2B75 GPIO driver APIs
+#include "sysint/cy_sysint.h"  // CYT2B75 system Interrupt APIs
+
+/*==============================================================================
+
+                        LOCAL AND EXTERNAL DEFINITIONS
+
+==============================================================================*/
+extern const size_t array_size;
+extern const dal_pin_t pin_map[];
+extern volatile stc_GPIO_PRT_t *const gpio_port[];
+typedef struct
+{
+
+    uint32_t alt_fn_e;
+    en_hsiom_sel_t cyt_alt_fn_e;
+
+} asdk_pinmux_t;
+/*Static constant array of the alternate functions for the cyt platform*/
+static const asdk_pinmux_t pinmux_arr[100][10] =
+    {
+        [2] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 18), .cyt_alt_fn_e = P0_0_TCPWM0_LINE18},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 22), .cyt_alt_fn_e = P0_0_TCPWM0_LINE_COMPL22},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 18), .cyt_alt_fn_e = P0_0_TCPWM0_TR_ONE_CNT_IN54},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 22), .cyt_alt_fn_e = P0_0_TCPWM0_TR_ONE_CNT_IN67},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 0), .cyt_alt_fn_e = P0_0_SCB0_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 7), .cyt_alt_fn_e = P0_0_SCB7_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 1), .cyt_alt_fn_e = P0_0_LIN0_LIN_RX1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 0), .cyt_alt_fn_e = P0_0_SCB0_SPI_MISO},
+        },
+        [3] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 17), .cyt_alt_fn_e = P0_1_TCPWM0_LINE17},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 18), .cyt_alt_fn_e = P0_1_TCPWM0_LINE_COMPL18},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 17), .cyt_alt_fn_e = P0_1_TCPWM0_TR_ONE_CNT_IN51},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 18), .cyt_alt_fn_e = P0_1_TCPWM0_TR_ONE_CNT_IN55},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 0), .cyt_alt_fn_e = P0_1_SCB0_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 7), .cyt_alt_fn_e = P0_1_SCB7_I2C_SCL},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 1), .cyt_alt_fn_e = P0_1_LIN0_LIN_TX1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 0), .cyt_alt_fn_e = P0_1_SCB0_SPI_MOSI},
+        },
+        [4] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 14), .cyt_alt_fn_e = P0_2_TCPWM0_LINE14},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 17), .cyt_alt_fn_e = P0_2_TCPWM0_LINE_COMPL17},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 14), .cyt_alt_fn_e = P0_2_TCPWM0_TR_ONE_CNT_IN42},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 17), .cyt_alt_fn_e = P0_2_TCPWM0_TR_ONE_CNT_IN52},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 0), .cyt_alt_fn_e = P0_2_SCB0_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 0), .cyt_alt_fn_e = P0_2_SCB0_I2C_SCL},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 1), .cyt_alt_fn_e = P0_2_LIN0_LIN_EN1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 0), .cyt_alt_fn_e = P0_2_SCB0_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 0), .cyt_alt_fn_e = P0_2_CANFD0_TTCAN_TX1},
+
+        },
+        [5] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 13), .cyt_alt_fn_e = P0_3_TCPWM0_LINE13},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 14), .cyt_alt_fn_e = P0_3_TCPWM0_LINE_COMPL14},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 13), .cyt_alt_fn_e = P0_3_TCPWM0_TR_ONE_CNT_IN39},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 14), .cyt_alt_fn_e = P0_3_TCPWM0_TR_ONE_CNT_IN43},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 0), .cyt_alt_fn_e = P0_3_SCB0_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 0), .cyt_alt_fn_e = P0_3_SCB0_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 0), .cyt_alt_fn_e = P0_3_SCB0_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 0), .cyt_alt_fn_e = P0_3_CANFD0_TTCAN_RX1},
+
+        },
+        [6] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 7), .cyt_alt_fn_e = P2_0_TCPWM0_LINE7},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 8), .cyt_alt_fn_e = P2_0_TCPWM0_LINE_COMPL8},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 7), .cyt_alt_fn_e = P2_0_TCPWM0_TR_ONE_CNT_IN21},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 8), .cyt_alt_fn_e = P2_0_TCPWM0_TR_ONE_CNT_IN25},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 7), .cyt_alt_fn_e = P2_0_SCB7_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 0), .cyt_alt_fn_e = P2_0_LIN0_LIN_RX0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 0), .cyt_alt_fn_e = P2_0_SCB0_SPI_SELECT1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 0), .cyt_alt_fn_e = P2_0_CANFD0_TTCAN_TX0},
+
+        },
+        [7] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 6), .cyt_alt_fn_e = P2_1_TCPWM0_LINE6},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 7), .cyt_alt_fn_e = P2_1_TCPWM0_LINE_COMPL7},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 6), .cyt_alt_fn_e = P2_1_TCPWM0_TR_ONE_CNT_IN18},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 7), .cyt_alt_fn_e = P2_1_TCPWM0_TR_ONE_CNT_IN22},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 7), .cyt_alt_fn_e = P2_1_SCB7_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 0), .cyt_alt_fn_e = P2_1_LIN0_LIN_TX0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 0), .cyt_alt_fn_e = P2_1_SCB0_SPI_SELECT2},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 7), .cyt_alt_fn_e = P2_1_SCB7_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 0), .cyt_alt_fn_e = P2_1_CANFD0_TTCAN_RX0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 7), .cyt_alt_fn_e = P2_1_SCB7_I2C_SDA},
+        },
+        [8] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 5), .cyt_alt_fn_e = P2_2_TCPWM0_LINE5},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 6), .cyt_alt_fn_e = P2_2_TCPWM0_LINE_COMPL6},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 5), .cyt_alt_fn_e = P2_2_TCPWM0_TR_ONE_CNT_IN15},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 6), .cyt_alt_fn_e = P2_2_TCPWM0_TR_ONE_CNT_IN19},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 7), .cyt_alt_fn_e = P2_2_SCB7_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 0), .cyt_alt_fn_e = P2_2_LIN0_LIN_EN0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS3, 0), .cyt_alt_fn_e = P2_2_SCB0_SPI_SELECT3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 7), .cyt_alt_fn_e = P2_2_SCB7_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 7), .cyt_alt_fn_e = P2_2_SCB7_I2C_SCL},
+        },
+        [9] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 4), .cyt_alt_fn_e = P2_3_TCPWM0_LINE4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 5), .cyt_alt_fn_e = P2_3_TCPWM0_LINE_COMPL5},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 4), .cyt_alt_fn_e = P2_3_TCPWM0_TR_ONE_CNT_IN12},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 5), .cyt_alt_fn_e = P2_3_TCPWM0_TR_ONE_CNT_IN16},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 7), .cyt_alt_fn_e = P2_3_SCB7_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 5), .cyt_alt_fn_e = P2_3_LIN0_LIN_RX5},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 7), .cyt_alt_fn_e = P2_3_SCB7_SPI_SELECT0},
+        },
+        [10] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 1), .cyt_alt_fn_e = P3_0_TCPWM0_LINE1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 2), .cyt_alt_fn_e = P3_0_TCPWM0_LINE_COMPL2},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 1), .cyt_alt_fn_e = P3_0_TCPWM0_TR_ONE_CNT_IN3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 2), .cyt_alt_fn_e = P3_0_TCPWM0_TR_ONE_CNT_IN7},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 6), .cyt_alt_fn_e = P3_0_SCB6_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 6), .cyt_alt_fn_e = P3_0_SCB6_SPI_MISO},
+        },
+        [11] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P3_1_TCPWM0_LINE0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 1), .cyt_alt_fn_e = P3_1_TCPWM0_LINE_COMPL1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 0), .cyt_alt_fn_e = P3_1_TCPWM0_TR_ONE_CNT_IN0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 1), .cyt_alt_fn_e = P3_1_TCPWM0_TR_ONE_CNT_IN4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 6), .cyt_alt_fn_e = P3_1_SCB6_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 6), .cyt_alt_fn_e = P3_1_SCB6_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 6), .cyt_alt_fn_e = P3_1_SCB6_I2C_SDA},
+
+        },
+        [14] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 9), .cyt_alt_fn_e = P5_0_TCPWM0_LINE9},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 8), .cyt_alt_fn_e = P5_0_TCPWM0_LINE_COMPL8},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 9), .cyt_alt_fn_e = P5_0_TCPWM0_TR_ONE_CNT_IN27},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 8), .cyt_alt_fn_e = P5_0_TCPWM0_TR_ONE_CNT_IN25},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 5), .cyt_alt_fn_e = P5_0_SCB5_SPI_SELECT2},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 7), .cyt_alt_fn_e = P5_0_LIN0_LIN_RX7},
+        },
+        [15] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 10), .cyt_alt_fn_e = P5_1_TCPWM0_LINE10},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 9), .cyt_alt_fn_e = P5_1_TCPWM0_LINE_COMPL9},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 10), .cyt_alt_fn_e = P5_1_TCPWM0_TR_ONE_CNT_IN30},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 9), .cyt_alt_fn_e = P5_1_TCPWM0_TR_ONE_CNT_IN28},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 7), .cyt_alt_fn_e = P5_1_LIN0_LIN_TX7},
+        },
+        [16] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 11), .cyt_alt_fn_e = P5_2_TCPWM0_LINE11},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 10), .cyt_alt_fn_e = P5_2_TCPWM0_LINE_COMPL10},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 11), .cyt_alt_fn_e = P5_2_TCPWM0_TR_ONE_CNT_IN33},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 10), .cyt_alt_fn_e = P5_2_TCPWM0_TR_ONE_CNT_IN31},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 7), .cyt_alt_fn_e = P5_2_LIN0_LIN_EN7},
+        },
+        [17] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 12), .cyt_alt_fn_e = P5_3_TCPWM0_LINE12},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 11), .cyt_alt_fn_e = P5_3_TCPWM0_LINE_COMPL11},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 12), .cyt_alt_fn_e = P5_3_TCPWM0_TR_ONE_CNT_IN36},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 11), .cyt_alt_fn_e = P5_3_TCPWM0_TR_ONE_CNT_IN34},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 2), .cyt_alt_fn_e = P5_3_LIN0_LIN_RX2},
+        },
+        [18] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P6_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 0), .cyt_alt_fn_e = P6_0_TCPWM0_LINE256},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 14), .cyt_alt_fn_e = P6_0_TCPWM0_LINE_COMPL14},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 0), .cyt_alt_fn_e = P6_0_TCPWM0_TR_ONE_CNT_IN768},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 14), .cyt_alt_fn_e = P6_0_TCPWM0_TR_ONE_CNT_IN43},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 4), .cyt_alt_fn_e = P6_0_SCB4_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 3), .cyt_alt_fn_e = P6_0_LIN0_LIN_RX3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 4), .cyt_alt_fn_e = P6_0_SCB4_SPI_MISO},
+
+        },
+        [19] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 1), .cyt_alt_fn_e = P6_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P6_1_TCPWM0_LINE0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 0), .cyt_alt_fn_e = P6_1_TCPWM0_LINE_COMPL256},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 0), .cyt_alt_fn_e = P6_1_TCPWM0_TR_ONE_CNT_IN0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 1), .cyt_alt_fn_e = P6_1_TCPWM0_TR_ONE_CNT_IN769},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 4), .cyt_alt_fn_e = P6_1_SCB4_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 3), .cyt_alt_fn_e = P6_1_LIN0_LIN_TX3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 4), .cyt_alt_fn_e = P6_1_SCB4_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 4), .cyt_alt_fn_e = P6_1_SCB4_I2C_SDA},
+
+        },
+        [20] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 2), .cyt_alt_fn_e = P6_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 1), .cyt_alt_fn_e = P6_2_TCPWM0_LINE257},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P6_2_TCPWM0_LINE_COMPL0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 1), .cyt_alt_fn_e = P6_2_TCPWM0_TR_ONE_CNT_IN771},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 0), .cyt_alt_fn_e = P6_2_TCPWM0_TR_ONE_CNT_IN1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 4), .cyt_alt_fn_e = P6_2_SCB4_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 3), .cyt_alt_fn_e = P6_2_LIN0_LIN_EN3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 4), .cyt_alt_fn_e = P6_2_SCB4_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 4), .cyt_alt_fn_e = P6_2_SCB4_I2C_SCL},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 0), .cyt_alt_fn_e = P6_2_CANFD0_TTCAN_TX2},
+
+        },
+        [21] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 3), .cyt_alt_fn_e = P6_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 1), .cyt_alt_fn_e = P6_3_TCPWM0_LINE1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 1), .cyt_alt_fn_e = P6_3_TCPWM0_LINE_COMPL257},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 1), .cyt_alt_fn_e = P6_3_TCPWM0_TR_ONE_CNT_IN3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 1), .cyt_alt_fn_e = P6_3_TCPWM0_TR_ONE_CNT_IN772},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 4), .cyt_alt_fn_e = P6_3_SCB4_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 4), .cyt_alt_fn_e = P6_3_LIN0_LIN_RX4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 4), .cyt_alt_fn_e = P6_3_SCB4_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 0), .cyt_alt_fn_e = P6_3_CANFD0_TTCAN_RX2},
+
+        },
+        [22] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 4), .cyt_alt_fn_e = P6_4_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 2), .cyt_alt_fn_e = P6_4_TCPWM0_LINE258},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 1), .cyt_alt_fn_e = P6_4_TCPWM0_LINE_COMPL1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 2), .cyt_alt_fn_e = P6_4_TCPWM0_TR_ONE_CNT_IN774},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 1), .cyt_alt_fn_e = P6_4_TCPWM0_TR_ONE_CNT_IN4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 4), .cyt_alt_fn_e = P6_4_LIN0_LIN_TX4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 4), .cyt_alt_fn_e = P6_4_SCB4_SPI_SELECT1},
+
+        },
+        [23] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 5), .cyt_alt_fn_e = P6_5_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 2), .cyt_alt_fn_e = P6_5_TCPWM0_LINE2},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 2), .cyt_alt_fn_e = P6_5_TCPWM0_LINE_COMPL258},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 2), .cyt_alt_fn_e = P6_5_TCPWM0_TR_ONE_CNT_IN6},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 2), .cyt_alt_fn_e = P6_5_TCPWM0_TR_ONE_CNT_IN775},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 4), .cyt_alt_fn_e = P6_5_LIN0_LIN_EN4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 4), .cyt_alt_fn_e = P6_5_SCB4_SPI_SELECT2},
+
+        },
+        [29] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 8), .cyt_alt_fn_e = P7_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 4), .cyt_alt_fn_e = P7_0_TCPWM0_LINE260},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 3), .cyt_alt_fn_e = P7_0_TCPWM0_LINE_COMPL3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 4), .cyt_alt_fn_e = P7_0_TCPWM0_TR_ONE_CNT_IN780},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 3), .cyt_alt_fn_e = P7_0_TCPWM0_TR_ONE_CNT_IN10},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 4), .cyt_alt_fn_e = P7_0_LIN0_LIN_RX4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 5), .cyt_alt_fn_e = P7_0_SCB5_SPI_MISO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 5), .cyt_alt_fn_e = P7_0_SCB5_UART_RX},
+        },
+        [30] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 9), .cyt_alt_fn_e = P7_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 15), .cyt_alt_fn_e = P7_1_TCPWM0_LINE15},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 4), .cyt_alt_fn_e = P7_1_TCPWM0_LINE_COMPL260},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 15), .cyt_alt_fn_e = P7_1_TCPWM0_TR_ONE_CNT_IN45},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 4), .cyt_alt_fn_e = P7_1_TCPWM0_TR_ONE_CNT_IN781},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 4), .cyt_alt_fn_e = P7_1_LIN0_LIN_TX4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 5), .cyt_alt_fn_e = P7_1_SCB5_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 5), .cyt_alt_fn_e = P7_1_SCB5_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 5), .cyt_alt_fn_e = P7_1_SCB5_I2C_SDA},
+
+        },
+        [31] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 10), .cyt_alt_fn_e = P7_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 5), .cyt_alt_fn_e = P7_2_TCPWM0_LINE261},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 15), .cyt_alt_fn_e = P7_2_TCPWM0_LINE_COMPL15},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 5), .cyt_alt_fn_e = P7_2_TCPWM0_TR_ONE_CNT_IN783},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 15), .cyt_alt_fn_e = P7_2_TCPWM0_TR_ONE_CNT_IN46},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 4), .cyt_alt_fn_e = P7_2_LIN0_LIN_EN4},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 5), .cyt_alt_fn_e = P7_2_SCB5_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 5), .cyt_alt_fn_e = P7_2_SCB5_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 5), .cyt_alt_fn_e = P7_2_SCB5_I2C_SCL},
+
+        },
+        [32] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 11), .cyt_alt_fn_e = P7_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 16), .cyt_alt_fn_e = P7_3_TCPWM0_LINE16},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 5), .cyt_alt_fn_e = P7_3_TCPWM0_LINE_COMPL261},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 16), .cyt_alt_fn_e = P7_3_TCPWM0_TR_ONE_CNT_IN48},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 5), .cyt_alt_fn_e = P7_3_TCPWM0_TR_ONE_CNT_IN784},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 5), .cyt_alt_fn_e = P7_3_SCB5_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 5), .cyt_alt_fn_e = P7_3_SCB5_SPI_SELECT0},
+
+        },
+        [33] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 12), .cyt_alt_fn_e = P7_4_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 6), .cyt_alt_fn_e = P7_4_TCPWM0_LINE262},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 16), .cyt_alt_fn_e = P7_4_TCPWM0_LINE_COMPL16},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 6), .cyt_alt_fn_e = P7_4_TCPWM0_TR_ONE_CNT_IN786},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 16), .cyt_alt_fn_e = P7_4_TCPWM0_TR_ONE_CNT_IN49},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 5), .cyt_alt_fn_e = P7_4_SCB5_SPI_SELECT1},
+        },
+        [34] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 13), .cyt_alt_fn_e = P7_5_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 17), .cyt_alt_fn_e = P7_5_TCPWM0_LINE17},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 6), .cyt_alt_fn_e = P7_5_TCPWM0_LINE_COMPL262},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 17), .cyt_alt_fn_e = P7_5_TCPWM0_TR_ONE_CNT_IN51},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 6), .cyt_alt_fn_e = P7_5_TCPWM0_TR_ONE_CNT_IN787},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 5), .cyt_alt_fn_e = P7_5_SCB5_SPI_SELECT2},
+        },
+        [35] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 19), .cyt_alt_fn_e = P8_0_TCPWM0_LINE19},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 18), .cyt_alt_fn_e = P8_0_TCPWM0_LINE_COMPL18},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 19), .cyt_alt_fn_e = P8_0_TCPWM0_TR_ONE_CNT_IN57},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 18), .cyt_alt_fn_e = P8_0_TCPWM0_TR_ONE_CNT_IN55},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 0), .cyt_alt_fn_e = P8_0_CANFD0_TTCAN_TX0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 2), .cyt_alt_fn_e = P8_0_LIN0_LIN_RX2},
+        },
+        [36] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 16), .cyt_alt_fn_e = P8_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 20), .cyt_alt_fn_e = P8_1_TCPWM0_LINE20},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 19), .cyt_alt_fn_e = P8_1_TCPWM0_LINE_COMPL19},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 20), .cyt_alt_fn_e = P8_1_TCPWM0_TR_ONE_CNT_IN60},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 19), .cyt_alt_fn_e = P8_1_TCPWM0_TR_ONE_CNT_IN58},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 0), .cyt_alt_fn_e = P8_1_CANFD0_TTCAN_RX0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 2), .cyt_alt_fn_e = P8_1_LIN0_LIN_TX2},
+        },
+        [37] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 17), .cyt_alt_fn_e = P8_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 21), .cyt_alt_fn_e = P8_2_TCPWM0_LINE21},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 20), .cyt_alt_fn_e = P8_2_TCPWM0_LINE_COMPL20},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 21), .cyt_alt_fn_e = P8_2_TCPWM0_TR_ONE_CNT_IN63},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 20), .cyt_alt_fn_e = P8_2_TCPWM0_TR_ONE_CNT_IN61},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 2), .cyt_alt_fn_e = P8_2_LIN0_LIN_EN2},
+        },
+        [38] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P11_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 20), .cyt_alt_fn_e = P11_0_GPIO},
+
+        },
+        [39] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P11_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 20), .cyt_alt_fn_e = P11_1_GPIO},
+
+        },
+        [40] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE0, 0), .cyt_alt_fn_e = P11_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 20), .cyt_alt_fn_e = P11_2_GPIO},
+
+        },
+        [45] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 4), .cyt_alt_fn_e = P12_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 36), .cyt_alt_fn_e = P12_0_TCPWM0_LINE36},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 35), .cyt_alt_fn_e = P12_0_TCPWM0_LINE_COMPL35},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 36), .cyt_alt_fn_e = P12_0_TCPWM0_TR_ONE_CNT_IN108},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 35), .cyt_alt_fn_e = P12_0_TCPWM0_TR_ONE_CNT_IN106},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 0), .cyt_alt_fn_e = P12_0_CANFD0_TTCAN_TX2},
+        },
+        [46] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 5), .cyt_alt_fn_e = P12_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 37), .cyt_alt_fn_e = P12_1_TCPWM0_LINE37},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 36), .cyt_alt_fn_e = P12_1_TCPWM0_LINE_COMPL36},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 37), .cyt_alt_fn_e = P12_1_TCPWM0_TR_ONE_CNT_IN111},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 36), .cyt_alt_fn_e = P12_1_TCPWM0_TR_ONE_CNT_IN109},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 0), .cyt_alt_fn_e = P12_1_CANFD0_TTCAN_RX2},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_EN, 6), .cyt_alt_fn_e = P12_1_LIN0_LIN_EN6},
+
+        },
+        [47] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 6), .cyt_alt_fn_e = P12_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 38), .cyt_alt_fn_e = P12_2_TCPWM0_LINE38},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 37), .cyt_alt_fn_e = P12_2_TCPWM0_LINE_COMPL37},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 38), .cyt_alt_fn_e = P12_2_TCPWM0_TR_ONE_CNT_IN114},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 37), .cyt_alt_fn_e = P12_2_TCPWM0_TR_ONE_CNT_IN112},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 6), .cyt_alt_fn_e = P12_2_LIN0_LIN_RX6},
+
+        },
+        [48] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 7), .cyt_alt_fn_e = P12_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 39), .cyt_alt_fn_e = P12_3_TCPWM0_LINE39},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 38), .cyt_alt_fn_e = P12_3_TCPWM0_LINE_COMPL38},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 39), .cyt_alt_fn_e = P12_3_TCPWM0_TR_ONE_CNT_IN117},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 38), .cyt_alt_fn_e = P12_3_TCPWM0_TR_ONE_CNT_IN115},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 6), .cyt_alt_fn_e = P12_3_LIN0_LIN_TX6},
+
+        },
+        [49] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 8), .cyt_alt_fn_e = P12_4_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 40), .cyt_alt_fn_e = P12_4_TCPWM0_LINE40},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 39), .cyt_alt_fn_e = P12_4_TCPWM0_LINE_COMPL39},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 40), .cyt_alt_fn_e = P12_4_TCPWM0_TR_ONE_CNT_IN120},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 39), .cyt_alt_fn_e = P12_4_TCPWM0_TR_ONE_CNT_IN118},
+
+        },
+        [52] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 12), .cyt_alt_fn_e = P13_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 8), .cyt_alt_fn_e = P13_0_TCPWM0_LINE264},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 43), .cyt_alt_fn_e = P13_0_TCPWM0_LINE_COMPL43},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 8), .cyt_alt_fn_e = P13_0_TCPWM0_TR_ONE_CNT_IN792},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 43), .cyt_alt_fn_e = P13_0_TCPWM0_TR_ONE_CNT_IN130},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 3), .cyt_alt_fn_e = P13_0_SCB3_SPI_MISO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 3), .cyt_alt_fn_e = P13_0_SCB3_UART_RX},
+        },
+        [53] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 13), .cyt_alt_fn_e = P13_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 44), .cyt_alt_fn_e = P13_1_TCPWM0_LINE44},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 8), .cyt_alt_fn_e = P13_1_TCPWM0_LINE_COMPL264},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 44), .cyt_alt_fn_e = P13_1_TCPWM0_TR_ONE_CNT_IN132},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 8), .cyt_alt_fn_e = P13_1_TCPWM0_TR_ONE_CNT_IN793},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 3), .cyt_alt_fn_e = P13_1_SCB3_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 3), .cyt_alt_fn_e = P13_1_SCB3_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 3), .cyt_alt_fn_e = P13_1_SCB3_I2C_SDA},
+
+        },
+        [54] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 14), .cyt_alt_fn_e = P13_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 9), .cyt_alt_fn_e = P13_2_TCPWM0_LINE265},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 44), .cyt_alt_fn_e = P13_2_TCPWM0_LINE_COMPL44},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 9), .cyt_alt_fn_e = P13_2_TCPWM0_TR_ONE_CNT_IN795},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 44), .cyt_alt_fn_e = P13_2_TCPWM0_TR_ONE_CNT_IN133},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 3), .cyt_alt_fn_e = P13_2_SCB3_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 3), .cyt_alt_fn_e = P13_2_SCB3_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 3), .cyt_alt_fn_e = P13_2_SCB3_I2C_SCL},
+
+        },
+        [55] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 15), .cyt_alt_fn_e = P13_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 45), .cyt_alt_fn_e = P13_3_TCPWM0_LINE45},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 9), .cyt_alt_fn_e = P13_3_TCPWM0_LINE_COMPL265},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 45), .cyt_alt_fn_e = P13_3_TCPWM0_TR_ONE_CNT_IN135},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 9), .cyt_alt_fn_e = P13_3_TCPWM0_TR_ONE_CNT_IN796},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 3), .cyt_alt_fn_e = P13_3_SCB3_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 3), .cyt_alt_fn_e = P13_3_SCB3_UART_CTS},
+
+        },
+        [56] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 16), .cyt_alt_fn_e = P13_4_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 10), .cyt_alt_fn_e = P13_4_TCPWM0_LINE266},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 45), .cyt_alt_fn_e = P13_4_TCPWM0_LINE_COMPL45},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 10), .cyt_alt_fn_e = P13_4_TCPWM0_TR_ONE_CNT_IN798},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 45), .cyt_alt_fn_e = P13_4_TCPWM0_TR_ONE_CNT_IN136},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 3), .cyt_alt_fn_e = P13_4_SCB3_SPI_SELECT1},
+
+        },
+        [57] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 17), .cyt_alt_fn_e = P13_5_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 46), .cyt_alt_fn_e = P13_5_TCPWM0_LINE46},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 10), .cyt_alt_fn_e = P13_5_TCPWM0_LINE_COMPL266},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 46), .cyt_alt_fn_e = P13_5_TCPWM0_TR_ONE_CNT_IN138},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 10), .cyt_alt_fn_e = P13_5_TCPWM0_TR_ONE_CNT_IN799},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 3), .cyt_alt_fn_e = P13_5_SCB3_SPI_SELECT2},
+        },
+        [58] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 18), .cyt_alt_fn_e = P13_6_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 11), .cyt_alt_fn_e = P13_6_TCPWM0_LINE267},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 46), .cyt_alt_fn_e = P13_6_TCPWM0_LINE_COMPL46},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 11), .cyt_alt_fn_e = P13_6_TCPWM0_TR_ONE_CNT_IN801},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 46), .cyt_alt_fn_e = P13_6_TCPWM0_TR_ONE_CNT_IN139},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS3, 3), .cyt_alt_fn_e = P13_6_SCB3_SPI_SELECT3},
+
+        },
+        [59] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 19), .cyt_alt_fn_e = P13_7_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 47), .cyt_alt_fn_e = P13_7_TCPWM0_LINE47},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 11), .cyt_alt_fn_e = P13_7_TCPWM0_LINE_COMPL267},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 47), .cyt_alt_fn_e = P13_7_TCPWM0_TR_ONE_CNT_IN141},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 11), .cyt_alt_fn_e = P13_7_TCPWM0_TR_ONE_CNT_IN802},
+
+        },
+        [60] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 20), .cyt_alt_fn_e = P14_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 48), .cyt_alt_fn_e = P14_0_TCPWM0_LINE48},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 47), .cyt_alt_fn_e = P14_0_TCPWM0_LINE_COMPL47},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 48), .cyt_alt_fn_e = P14_0_TCPWM0_TR_ONE_CNT_IN144},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 47), .cyt_alt_fn_e = P14_0_TCPWM0_TR_ONE_CNT_IN142},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 2), .cyt_alt_fn_e = P14_0_SCB2_SPI_MISO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 2), .cyt_alt_fn_e = P14_0_SCB2_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 1), .cyt_alt_fn_e = P14_0_CANFD1_TTCAN_TX0},
+        },
+        [61] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 21), .cyt_alt_fn_e = P14_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 49), .cyt_alt_fn_e = P14_1_TCPWM0_LINE49},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 48), .cyt_alt_fn_e = P14_1_TCPWM0_LINE_COMPL48},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 49), .cyt_alt_fn_e = P14_1_TCPWM0_TR_ONE_CNT_IN147},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 48), .cyt_alt_fn_e = P14_1_TCPWM0_TR_ONE_CNT_IN145},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 2), .cyt_alt_fn_e = P14_1_SCB2_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 2), .cyt_alt_fn_e = P14_1_SCB2_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 2), .cyt_alt_fn_e = P14_1_SCB2_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 1), .cyt_alt_fn_e = P14_1_CANFD1_TTCAN_RX0},
+
+        },
+        [62] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 22), .cyt_alt_fn_e = P14_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 50), .cyt_alt_fn_e = P14_2_TCPWM0_LINE50},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 49), .cyt_alt_fn_e = P14_2_TCPWM0_LINE_COMPL49},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 50), .cyt_alt_fn_e = P14_2_TCPWM0_TR_ONE_CNT_IN150},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 49), .cyt_alt_fn_e = P14_2_TCPWM0_TR_ONE_CNT_IN148},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 2), .cyt_alt_fn_e = P14_2_SCB2_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 2), .cyt_alt_fn_e = P14_2_SCB2_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 2), .cyt_alt_fn_e = P14_2_SCB2_I2C_SCL},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 6), .cyt_alt_fn_e = P14_2_LIN0_LIN_RX6},
+
+        },
+        [63] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE1, 23), .cyt_alt_fn_e = P14_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 51), .cyt_alt_fn_e = P14_3_TCPWM0_LINE51},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 50), .cyt_alt_fn_e = P14_3_TCPWM0_LINE_COMPL50},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 51), .cyt_alt_fn_e = P14_3_TCPWM0_TR_ONE_CNT_IN153},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 50), .cyt_alt_fn_e = P14_3_TCPWM0_TR_ONE_CNT_IN151},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 2), .cyt_alt_fn_e = P14_3_SCB2_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 2), .cyt_alt_fn_e = P14_3_SCB2_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_TX, 6), .cyt_alt_fn_e = P14_3_LIN0_LIN_TX6},
+
+        },
+        [64] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 61), .cyt_alt_fn_e = P17_0_TCPWM0_LINE61},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 62), .cyt_alt_fn_e = P17_0_TCPWM0_LINE_COMPL62},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 61), .cyt_alt_fn_e = P17_0_TCPWM0_TR_ONE_CNT_IN183},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 62), .cyt_alt_fn_e = P17_0_TCPWM0_TR_ONE_CNT_IN187},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 1), .cyt_alt_fn_e = P17_0_CANFD1_TTCAN_TX1},
+
+        },
+        [65] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 60), .cyt_alt_fn_e = P17_1_TCPWM0_LINE60},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 61), .cyt_alt_fn_e = P17_1_TCPWM0_LINE_COMPL61},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 60), .cyt_alt_fn_e = P17_1_TCPWM0_TR_ONE_CNT_IN180},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 61), .cyt_alt_fn_e = P17_1_TCPWM0_TR_ONE_CNT_IN184},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 2), .cyt_alt_fn_e = P17_1_TCPWM0_LINE514},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 1), .cyt_alt_fn_e = P17_1_CANFD1_TTCAN_RX1},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 3), .cyt_alt_fn_e = P17_1_SCB3_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 3), .cyt_alt_fn_e = P17_1_SCB3_SPI_MISO},
+
+        },
+        [66] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 59), .cyt_alt_fn_e = P17_2_TCPWM0_LINE59},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 60), .cyt_alt_fn_e = P17_2_TCPWM0_LINE_COMPL60},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 59), .cyt_alt_fn_e = P17_2_TCPWM0_TR_ONE_CNT_IN177},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 60), .cyt_alt_fn_e = P17_2_TCPWM0_TR_ONE_CNT_IN181},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 2), .cyt_alt_fn_e = P17_2_TCPWM0_LINE_COMPL514},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 3), .cyt_alt_fn_e = P17_2_SCB3_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 3), .cyt_alt_fn_e = P17_2_SCB3_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 3), .cyt_alt_fn_e = P17_2_SCB3_SPI_MOSI},
+
+        },
+        [67] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 0), .cyt_alt_fn_e = P18_0_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 6), .cyt_alt_fn_e = P18_0_TCPWM0_LINE262},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 5), .cyt_alt_fn_e = P18_0_TCPWM0_LINE_COMPL261},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 6), .cyt_alt_fn_e = P18_0_TCPWM0_TR_ONE_CNT_IN786},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 5), .cyt_alt_fn_e = P18_0_TCPWM0_TR_ONE_CNT_IN784},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 0), .cyt_alt_fn_e = P18_0_TCPWM0_LINE512},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 1), .cyt_alt_fn_e = P18_0_SCB1_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 1), .cyt_alt_fn_e = P18_0_SCB1_SPI_MISO},
+        },
+        [68] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 1), .cyt_alt_fn_e = P18_1_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 7), .cyt_alt_fn_e = P18_1_TCPWM0_LINE263},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 6), .cyt_alt_fn_e = P18_1_TCPWM0_LINE_COMPL262},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 7), .cyt_alt_fn_e = P18_1_TCPWM0_TR_ONE_CNT_IN789},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 6), .cyt_alt_fn_e = P18_1_TCPWM0_TR_ONE_CNT_IN787},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 0), .cyt_alt_fn_e = P18_1_TCPWM0_LINE_COMPL512},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 1), .cyt_alt_fn_e = P18_1_SCB1_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 1), .cyt_alt_fn_e = P18_1_SCB1_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 1), .cyt_alt_fn_e = P18_1_SCB1_SPI_MOSI},
+
+        },
+        [69] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 2), .cyt_alt_fn_e = P18_2_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 55), .cyt_alt_fn_e = P18_2_TCPWM0_LINE55},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 7), .cyt_alt_fn_e = P18_2_TCPWM0_LINE_COMPL263},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 55), .cyt_alt_fn_e = P18_2_TCPWM0_TR_ONE_CNT_IN165},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 7), .cyt_alt_fn_e = P18_2_TCPWM0_TR_ONE_CNT_IN790},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 1), .cyt_alt_fn_e = P18_2_TCPWM0_LINE513},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 1), .cyt_alt_fn_e = P18_2_SCB1_I2C_SCL},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 1), .cyt_alt_fn_e = P18_2_SCB1_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 1), .cyt_alt_fn_e = P18_2_SCB1_SPI_CLK},
+
+        },
+        [70] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 3), .cyt_alt_fn_e = P18_3_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 54), .cyt_alt_fn_e = P18_3_TCPWM0_LINE54},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 55), .cyt_alt_fn_e = P18_3_TCPWM0_LINE_COMPL55},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 54), .cyt_alt_fn_e = P18_3_TCPWM0_TR_ONE_CNT_IN162},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 55), .cyt_alt_fn_e = P18_3_TCPWM0_TR_ONE_CNT_IN166},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 1), .cyt_alt_fn_e = P18_3_TCPWM0_LINE_COMPL513},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 1), .cyt_alt_fn_e = P18_3_SCB1_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 1), .cyt_alt_fn_e = P18_3_SCB1_SPI_SELECT0},
+
+        },
+        [71] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 4), .cyt_alt_fn_e = P18_4_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 53), .cyt_alt_fn_e = P18_4_TCPWM0_LINE53},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 54), .cyt_alt_fn_e = P18_4_TCPWM0_LINE_COMPL54},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 53), .cyt_alt_fn_e = P18_4_TCPWM0_TR_ONE_CNT_IN159},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 54), .cyt_alt_fn_e = P18_4_TCPWM0_TR_ONE_CNT_IN163},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 2), .cyt_alt_fn_e = P18_4_TCPWM0_LINE514},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 1), .cyt_alt_fn_e = P18_4_SCB1_SPI_SELECT1},
+
+        },
+        [72] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 5), .cyt_alt_fn_e = P18_5_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 52), .cyt_alt_fn_e = P18_5_TCPWM0_LINE52},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 53), .cyt_alt_fn_e = P18_5_TCPWM0_LINE_COMPL53},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 52), .cyt_alt_fn_e = P18_5_TCPWM0_TR_ONE_CNT_IN156},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 53), .cyt_alt_fn_e = P18_5_TCPWM0_TR_ONE_CNT_IN160},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 2), .cyt_alt_fn_e = P18_5_TCPWM0_LINE_COMPL514},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 1), .cyt_alt_fn_e = P18_5_SCB1_SPI_SELECT2},
+
+        },
+        [73] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 6), .cyt_alt_fn_e = P18_6_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 51), .cyt_alt_fn_e = P18_6_TCPWM0_LINE51},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 52), .cyt_alt_fn_e = P18_6_TCPWM0_LINE_COMPL52},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 51), .cyt_alt_fn_e = P18_6_TCPWM0_TR_ONE_CNT_IN153},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 52), .cyt_alt_fn_e = P18_6_TCPWM0_TR_ONE_CNT_IN157},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 3), .cyt_alt_fn_e = P18_6_TCPWM0_LINE515},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS3, 1), .cyt_alt_fn_e = P18_6_SCB1_SPI_SELECT3},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 1), .cyt_alt_fn_e = P18_6_CANFD1_TTCAN_TX2},
+
+        },
+        [74] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_ADC, ASDK_PINMUX_ADC_SUBFUN_MODULE2, 7), .cyt_alt_fn_e = P18_7_GPIO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 50), .cyt_alt_fn_e = P18_7_TCPWM0_LINE50},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 51), .cyt_alt_fn_e = P18_7_TCPWM0_LINE_COMPL51},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 50), .cyt_alt_fn_e = P18_7_TCPWM0_TR_ONE_CNT_IN150},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 51), .cyt_alt_fn_e = P18_7_TCPWM0_TR_ONE_CNT_IN154},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE2, 3), .cyt_alt_fn_e = P18_7_TCPWM0_LINE_COMPL515},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 1), .cyt_alt_fn_e = P18_7_CANFD1_TTCAN_RX2},
+
+        },
+        [77] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 3), .cyt_alt_fn_e = P19_0_TCPWM0_LINE259},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 50), .cyt_alt_fn_e = P19_0_TCPWM0_LINE_COMPL50},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 3), .cyt_alt_fn_e = P19_0_TCPWM0_TR_ONE_CNT_IN777},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 50), .cyt_alt_fn_e = P19_0_TCPWM0_TR_ONE_CNT_IN151},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM2_CHX_SUBFUN_TRIG0, 0), .cyt_alt_fn_e = P19_0_TCPWM0_TR_ONE_CNT_IN1536},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 2), .cyt_alt_fn_e = P19_0_SCB2_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 2), .cyt_alt_fn_e = P19_0_SCB2_SPI_MISO},
+        },
+        [78] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 26), .cyt_alt_fn_e = P19_1_TCPWM0_LINE26},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 3), .cyt_alt_fn_e = P19_1_TCPWM0_LINE_COMPL259},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 26), .cyt_alt_fn_e = P19_1_TCPWM0_TR_ONE_CNT_IN78},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 3), .cyt_alt_fn_e = P19_1_TCPWM0_TR_ONE_CNT_IN778},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM2_CHX_SUBFUN_TRIG1, 0), .cyt_alt_fn_e = P19_1_TCPWM0_TR_ONE_CNT_IN1537},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 2), .cyt_alt_fn_e = P19_1_SCB2_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 2), .cyt_alt_fn_e = P19_1_SCB2_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 2), .cyt_alt_fn_e = P19_1_SCB2_I2C_SDA},
+        },
+        [79] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 27), .cyt_alt_fn_e = P19_2_TCPWM0_LINE27},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 26), .cyt_alt_fn_e = P19_2_TCPWM0_LINE_COMPL26},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 27), .cyt_alt_fn_e = P19_2_TCPWM0_TR_ONE_CNT_IN81},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 26), .cyt_alt_fn_e = P19_2_TCPWM0_TR_ONE_CNT_IN79},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM2_CHX_SUBFUN_TRIG0, 1), .cyt_alt_fn_e = P19_2_TCPWM0_TR_ONE_CNT_IN1539},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 2), .cyt_alt_fn_e = P19_2_SCB2_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 2), .cyt_alt_fn_e = P19_2_SCB2_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 2), .cyt_alt_fn_e = P19_2_SCB2_I2C_SCL},
+        },
+        [80] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 28), .cyt_alt_fn_e = P19_3_TCPWM0_LINE28},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 27), .cyt_alt_fn_e = P19_3_TCPWM0_LINE_COMPL27},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 28), .cyt_alt_fn_e = P19_3_TCPWM0_TR_ONE_CNT_IN84},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 27), .cyt_alt_fn_e = P19_3_TCPWM0_TR_ONE_CNT_IN82},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM2_CHX_SUBFUN_TRIG1, 1), .cyt_alt_fn_e = P19_3_TCPWM0_TR_ONE_CNT_IN1540},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 2), .cyt_alt_fn_e = P19_3_SCB2_UART_CTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 2), .cyt_alt_fn_e = P19_3_SCB2_SPI_SELECT0},
+        },
+        [81] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 42), .cyt_alt_fn_e = P21_0_TCPWM0_LINE42},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 43), .cyt_alt_fn_e = P21_0_TCPWM0_LINE_COMPL43},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 42), .cyt_alt_fn_e = P21_0_TCPWM0_TR_ONE_CNT_IN126},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 43), .cyt_alt_fn_e = P21_0_TCPWM0_TR_ONE_CNT_IN130},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 1), .cyt_alt_fn_e = P21_0_SCB1_SPI_SELECT2},
+        },
+        [82] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 41), .cyt_alt_fn_e = P21_1_TCPWM0_LINE41},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 42), .cyt_alt_fn_e = P21_1_TCPWM0_LINE_COMPL42},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 41), .cyt_alt_fn_e = P21_1_TCPWM0_TR_ONE_CNT_IN123},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 42), .cyt_alt_fn_e = P21_1_TCPWM0_TR_ONE_CNT_IN127},
+        },
+        [83] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 40), .cyt_alt_fn_e = P21_2_TCPWM0_LINE40},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 41), .cyt_alt_fn_e = P21_2_TCPWM0_LINE_COMPL41},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 40), .cyt_alt_fn_e = P21_2_TCPWM0_TR_ONE_CNT_IN120},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 41), .cyt_alt_fn_e = P21_2_TCPWM0_TR_ONE_CNT_IN124},
+        },
+        [84] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 39), .cyt_alt_fn_e = P21_3_TCPWM0_LINE39},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 40), .cyt_alt_fn_e = P21_3_TCPWM0_LINE_COMPL40},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 39), .cyt_alt_fn_e = P21_3_TCPWM0_TR_ONE_CNT_IN117},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 40), .cyt_alt_fn_e = P21_3_TCPWM0_TR_ONE_CNT_IN121},
+        },
+        [90] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 37), .cyt_alt_fn_e = P21_5_TCPWM0_LINE37},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 38), .cyt_alt_fn_e = P21_5_TCPWM0_LINE_COMPL38},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 37), .cyt_alt_fn_e = P21_5_TCPWM0_TR_ONE_CNT_IN111},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 38), .cyt_alt_fn_e = P21_5_TCPWM0_TR_ONE_CNT_IN115},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_LIN, ASDK_PINMUX_LIN_SUBFUN_RX, 0), .cyt_alt_fn_e = P21_5_LIN0_LIN_RX0},
+
+        },
+        [91] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 34), .cyt_alt_fn_e = P22_0_TCPWM0_LINE34},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 35), .cyt_alt_fn_e = P22_0_TCPWM0_LINE_COMPL35},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 34), .cyt_alt_fn_e = P22_0_TCPWM0_TR_ONE_CNT_IN102},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 35), .cyt_alt_fn_e = P22_0_TCPWM0_TR_ONE_CNT_IN106},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MISO, 6), .cyt_alt_fn_e = P22_0_SCB6_SPI_MISO},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RX, 6), .cyt_alt_fn_e = P22_0_SCB6_UART_RX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_TX, 1), .cyt_alt_fn_e = P22_0_CANFD1_TTCAN_TX1},
+        },
+        [92] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 33), .cyt_alt_fn_e = P22_1_TCPWM0_LINE33},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 34), .cyt_alt_fn_e = P22_1_TCPWM0_LINE_COMPL34},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 33), .cyt_alt_fn_e = P22_1_TCPWM0_TR_ONE_CNT_IN99},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 34), .cyt_alt_fn_e = P22_1_TCPWM0_TR_ONE_CNT_IN103},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_MOSI, 6), .cyt_alt_fn_e = P22_1_SCB6_SPI_MOSI},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_TX, 6), .cyt_alt_fn_e = P22_1_SCB6_UART_TX},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SDA, 6), .cyt_alt_fn_e = P22_1_SCB6_I2C_SDA},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_CAN, ASDK_PINMUX_CAN_SUBFUN_RX, 1), .cyt_alt_fn_e = P22_1_CANFD1_TTCAN_RX1},
+        },
+        [93] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 32), .cyt_alt_fn_e = P22_2_TCPWM0_LINE32},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 33), .cyt_alt_fn_e = P22_2_TCPWM0_LINE_COMPL33},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 32), .cyt_alt_fn_e = P22_2_TCPWM0_TR_ONE_CNT_IN96},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 33), .cyt_alt_fn_e = P22_2_TCPWM0_TR_ONE_CNT_IN100},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CLK, 6), .cyt_alt_fn_e = P22_2_SCB6_SPI_CLK},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_RTS, 6), .cyt_alt_fn_e = P22_2_SCB6_UART_RTS},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_I2C, ASDK_PINMUX_I2C_SUBFUN_SCL, 6), .cyt_alt_fn_e = P22_2_SCB6_I2C_SCL},
+
+        },
+        [94] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 31), .cyt_alt_fn_e = P22_3_TCPWM0_LINE31},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 32), .cyt_alt_fn_e = P22_3_TCPWM0_LINE_COMPL32},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 31), .cyt_alt_fn_e = P22_3_TCPWM0_TR_ONE_CNT_IN93},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 32), .cyt_alt_fn_e = P22_3_TCPWM0_TR_ONE_CNT_IN97},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 6), .cyt_alt_fn_e = P22_3_SCB6_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 6), .cyt_alt_fn_e = P22_3_SCB6_UART_CTS},
+
+        },
+        [95] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 11), .cyt_alt_fn_e = P23_3_TCPWM0_LINE267},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 10), .cyt_alt_fn_e = P23_3_TCPWM0_LINE_COMPL266},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 11), .cyt_alt_fn_e = P23_3_TCPWM0_TR_ONE_CNT_IN801},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG0, 10), .cyt_alt_fn_e = P23_3_TCPWM0_TR_ONE_CNT_IN799},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS0, 7), .cyt_alt_fn_e = P23_3_SCB7_SPI_SELECT0},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_UART, ASDK_PINMUX_UART_SUBFUN_CTS, 7), .cyt_alt_fn_e = P23_3_SCB7_UART_CTS},
+
+        },
+        [96] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 25), .cyt_alt_fn_e = P23_4_TCPWM0_LINE25},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE1, 11), .cyt_alt_fn_e = P23_4_TCPWM0_LINE_COMPL267},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 25), .cyt_alt_fn_e = P23_4_TCPWM0_TR_ONE_CNT_IN75},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM1_CHX_SUBFUN_TRIG1, 11), .cyt_alt_fn_e = P23_4_TCPWM0_TR_ONE_CNT_IN802},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS1, 7), .cyt_alt_fn_e = P23_4_SCB7_SPI_SELECT1},
+
+        },
+        [97] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 24), .cyt_alt_fn_e = P23_5_TCPWM0_LINE24},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 25), .cyt_alt_fn_e = P23_5_TCPWM0_LINE_COMPL25},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 24), .cyt_alt_fn_e = P23_5_TCPWM0_TR_ONE_CNT_IN72},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 25), .cyt_alt_fn_e = P23_5_TCPWM0_TR_ONE_CNT_IN76},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_SPI, ASDK_PINMUX_SPI_SUBFUN_CS2, 7), .cyt_alt_fn_e = P23_5_SCB7_SPI_SELECT2},
+
+        },
+        [98] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 23), .cyt_alt_fn_e = P23_6_TCPWM0_LINE23},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 24), .cyt_alt_fn_e = P23_6_TCPWM0_LINE_COMPL24},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 23), .cyt_alt_fn_e = P23_6_TCPWM0_TR_ONE_CNT_IN69},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 24), .cyt_alt_fn_e = P23_6_TCPWM0_TR_ONE_CNT_IN73},
+
+        },
+        [99] = {
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 22), .cyt_alt_fn_e = P23_7_TCPWM0_LINE22},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM, ASDK_PINMUX_TCPWM_SUBFUN_MODULE0, 23), .cyt_alt_fn_e = P23_7_TCPWM0_LINE_COMPL23},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG0, 22), .cyt_alt_fn_e = P23_7_TCPWM0_TR_ONE_CNT_IN66},
+            {.alt_fn_e = ASDK_PINMUX_ALTFUN(ASDK_PINMUX_FUN_TCPWM_TRIG, ASDK_PINMUX_TCPWM0_CHX_SUBFUN_TRIG1, 23), .cyt_alt_fn_e = P23_7_TCPWM0_TR_ONE_CNT_IN70},
+
+        },
+
+};
+/*==============================================================================
+
+                      LOCAL DEFINITIONS AND TYPES : MACROS
+
+==============================================================================*/
+#define PIN_MUX_SUCCESS 0
+#define REQUESTED_ALT_FUN_NOT_SUPPORTED 1
+#define MAX_ALT_FN 10
+
+/*==============================================================================
+
+                      LOCAL DEFINITIONS AND TYPES : ENUMS
+
+==============================================================================*/
+/*==============================================================================
+
+                            LOCAL FUNCTION PROTOTYPES
+
+==============================================================================*/
+static inline bool __asdk_set_pinmux_config_for_alternate_function(asdk_pinmux_config_t pinmux_config, cy_stc_gpio_pin_config_t *cy_pin_cfg);
+
+/*----------------------------------------------------------------------------*/
+/* Function : asdk_set_pinmux */
+/*----------------------------------------------------------------------------*/
+/*!
+  @brief
+  This function sets the pinmux for the given pin
+
+  @param pinmux_config - ASDK PINMUX configuration.
+  @param pin_count - Number of pins to be ste the Alternate Function
+
+  @return asdk_errorcode_t
+  @retval ASDK_PINMUX_SUCCESS
+  @retval ASDK_PINMUX_ERROR_NULL_PTR
+  @retval ASDK_PINMUX_ERROR_INVALID_MCU_PIN
+  @retval ASDK_PINMUX_ERROR_INVALID_ALTERNATE_FUNCTION
+  @retval ASDK_PINMUX_ERROR_INIT_CONFIG_ERROR
+  @retval ASDK_PINMUX_ERROR_DEINIT_CONFIG_ERROR
+
+*/
+
+asdk_errorcode_t asdk_set_pinmux(asdk_pinmux_config_t pinmux_config[], uint16_t pin_count)
+{
+    const dal_pin_t *cyt2b75_gpio = NULL;
+    asdk_errorcode_t ret_value = ASDK_PINMUX_SUCCESS;
+    bool pinmux_status_ret_val = PIN_MUX_SUCCESS;
+    cy_stc_gpio_pin_config_t cy_pin_cfg = {0};
+    cy_en_gpio_status_t cy_gpio_init_status = CY_GPIO_SUCCESS;
+
+    /* validate configuration parameters */
+    if (NULL == pinmux_config)
+    {
+        return ASDK_PINMUX_ERROR_NULL_PTR;
+    }
+
+    // de-intializing pinmux incase of failure
+    // Initialize the pinmux one-by-one i.e. one at a time
+    for (uint8_t pin_traverse = 0; pin_traverse < pin_count; pin_traverse++)
+    {
+        if (MCU_PIN_NOT_DEFINED <= pinmux_config[pin_traverse].MCU_pin_num)
+        {
+            return ASDK_PINMUX_ERROR_INVALID_MCU_PIN;
+        }
+
+        cyt2b75_gpio = &pin_map[(pinmux_config[pin_traverse].MCU_pin_num)];
+
+        if (CYT2B75_GPIO_PORT_MAX <= cyt2b75_gpio->port)
+        {
+            return ASDK_PINMUX_ERROR_INVALID_GPIO_PORT;
+        }
+
+        if (CYT2B75_GPIO_PIN_MAX <= cyt2b75_gpio->pin)
+        {
+            return ASDK_PINMUX_ERROR_INVALID_GPIO_PIN;
+        }
+
+        //  To do: for static functions internal to file add __ with asdk
+        pinmux_status_ret_val = __asdk_set_pinmux_config_for_alternate_function(pinmux_config[pin_traverse], &cy_pin_cfg);
+
+        if (PIN_MUX_SUCCESS == pinmux_status_ret_val)
+        {
+            /* initialize pin as GPIO */
+            cy_gpio_init_status = Cy_GPIO_Pin_Init(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, &cy_pin_cfg);
+
+            if (CY_GPIO_SUCCESS != cy_gpio_init_status)
+            {
+                ret_value = ASDK_GPIO_ERROR_INIT;
+            }
+        }
+        else
+        {
+             ret_value = ASDK_PINMUX_ERROR_INVALID_ALTERNATE_FUNCTION;
+        }
+    }
+    return ret_value;
+}
+
+/*----------------------------------------------------------------------------*/
+/* Function : asdk_set_default_pinmux */
+/*----------------------------------------------------------------------------*/
+/*!
+  @brief
+  This function sets the default pinmux for the given alternate function
+
+  @param pin - MCU pin for which the alternate function is set.
+  @param pinmux_config - ASDK PinMux config structure to get the Alternate Function
+
+  @return asdk_errorcode_t
+  @retval ASDK_PINMUX_SUCCESS
+  @retval ASDK_PINMUX_ERROR_INVALID_MCU_PIN
+  @retval ASDK_PINMUX_ERROR_INVALID_ALTERNATE_FUNCTION
+  @retval ASDK_PINMUX_ERROR_INIT_CONFIG_ERROR
+  @retval ASDK_PINMUX_ERROR_DEINIT_CONFIG_ERROR
+
+*/
+asdk_errorcode_t asdk_set_default_pinmux(asdk_pinmux_config_t pinmux_config)
+{
+    asdk_errorcode_t ret_value = ASDK_PINMUX_SUCCESS;
+    bool pinmux_status_ret_val = PIN_MUX_SUCCESS;
+    const dal_pin_t *cyt2b75_gpio = NULL;
+    cy_stc_gpio_pin_config_t cy_pin_cfg = {0};
+    cy_en_gpio_status_t cy_gpio_init_status = CY_GPIO_SUCCESS;
+
+    if (MCU_PIN_NOT_DEFINED <= pinmux_config.MCU_pin_num)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_MCU_PIN;
+    }
+
+    cyt2b75_gpio = &pin_map[pinmux_config.MCU_pin_num];
+
+    if (CYT2B75_GPIO_PORT_MAX <= cyt2b75_gpio->port)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_GPIO_PORT;
+    }
+
+    if (CYT2B75_GPIO_PIN_MAX <= cyt2b75_gpio->pin)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_GPIO_PIN;
+    }
+
+    pinmux_status_ret_val = __asdk_set_pinmux_config_for_alternate_function(pinmux_config, &cy_pin_cfg);
+
+    if (PIN_MUX_SUCCESS == pinmux_status_ret_val)
+    {
+        /* initialize pin as GPIO */
+        cy_gpio_init_status = Cy_GPIO_Pin_Init(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, &cy_pin_cfg);
+
+        if (CY_GPIO_SUCCESS != cy_gpio_init_status)
+        {
+            ret_value = ASDK_GPIO_ERROR_INIT;
+        }
+    }
+    else
+    {
+        ret_value = ASDK_PINMUX_ERROR_INVALID_ALTERNATE_FUNCTION;
+    }
+    return ret_value;
+}
+/*----------------------------------------------------------------------------*/
+/* Function : asdk_gpio_deinit */
+/*----------------------------------------------------------------------------*/
+/*!
+  @brief
+  This function de-initializes GPIO pin based on ECU input pin name.
+
+  @param asdk_mcu_pin_t pin_num ( input ) - Pin number of the MCU.
+
+  @return asdk_errorcode_t
+  @retval ASDK_PINMUX_SUCCESS
+  @retval ASDK_PINMUX_ERROR_INVALID_MCU_PIN
+  @retval ASDK_PINMUX_ERROR_INVALID_GPIO_PORT
+  @retval ASDK_PINMUX_ERROR_INVALID_GPIO_PIN
+*/
+asdk_errorcode_t asdk_deinit_pinmux(asdk_mcu_pin_t pin_num)
+{
+    uint32_t reg_value = 0;
+    uint32_t pin_mask = 0;
+    const dal_pin_t *cyt2b75_gpio = NULL;
+    volatile stc_GPIO_PRT_t *cyt2b75_port_reg = NULL;
+
+    if (MCU_PIN_MAX <= pin_num)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_MCU_PIN;
+    }
+
+    // derive actual PORT.PIN from MCU pin
+    cyt2b75_gpio = &pin_map[pin_num];
+
+    if (CYT2B75_GPIO_PORT_MAX <= cyt2b75_gpio->port)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_GPIO_PORT;
+    }
+
+    if (CYT2B75_GPIO_PIN_MAX <= cyt2b75_gpio->pin)
+    {
+        return ASDK_PINMUX_ERROR_INVALID_GPIO_PIN;
+    }
+
+    /* clear the expected bit alone for a given pin number
+       and update the GPIO Port registers */
+
+    // clear interrupt configuration reg.
+    Cy_GPIO_SetInterruptEdge(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear interrupt mask reg.
+    Cy_GPIO_SetInterruptMask(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear out buffer reg.
+    pin_mask = ~(1 << cyt2b75_gpio->pin); // clear the bit
+    cyt2b75_port_reg = gpio_port[cyt2b75_gpio->port];
+    reg_value = cyt2b75_port_reg->unOUT.u32Register & pin_mask;
+    cyt2b75_port_reg->unOUT.u32Register = reg_value;
+
+    // clear drive mode
+    Cy_GPIO_SetDrivemode(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear input buffer configuration register
+    Cy_GPIO_SetVtrip(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear slew rate configuration
+    Cy_GPIO_SetSlewRate(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear automotive configuration
+    GPIO_SetVtripAuto(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    // clear alternate function selection regs.
+    Cy_GPIO_SetHSIOM(gpio_port[cyt2b75_gpio->port], cyt2b75_gpio->pin, 0);
+
+    return ASDK_PINMUX_SUCCESS;
+}
+
+
+volatile uint32_t pinmux_id = 0;
+static inline bool __asdk_set_pinmux_config_for_alternate_function(asdk_pinmux_config_t pinmux_config, cy_stc_gpio_pin_config_t *cy_pin_cfg)
+
+{
+    bool ret_value = PIN_MUX_SUCCESS;
+
+
+    cy_pin_cfg->outVal = 0ul;
+    cy_pin_cfg->driveMode = pinmux_config.pull_configuration;
+    cy_pin_cfg->hsiom = 0ul;
+    cy_pin_cfg->intEdge = 0ul;
+    cy_pin_cfg->intMask = 0ul;
+    cy_pin_cfg->vtrip = 0ul;
+    cy_pin_cfg->slewRate = 0ul;
+    cy_pin_cfg->driveSel = 0ul;
+
+
+    for ( uint8_t alt_fn = 0; alt_fn < MAX_ALT_FN; alt_fn++)
+    {
+
+        pinmux_id = pinmux_arr[pinmux_config.MCU_pin_num][alt_fn].alt_fn_e ;
+        if (pinmux_id == pinmux_config.alternate_fun_id)
+        {
+            cy_pin_cfg->hsiom = pinmux_arr[pinmux_config.MCU_pin_num][alt_fn].cyt_alt_fn_e;
+            ret_value = PIN_MUX_SUCCESS;
+
+            break;
+        }
+        else
+        {
+            ret_value = REQUESTED_ALT_FUN_NOT_SUPPORTED;
+        }
+    }
+
+    return ret_value;
+}

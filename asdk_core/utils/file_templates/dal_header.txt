@@ -1,0 +1,80 @@
+/*
+Disclaimer:
+
+    The information/code provided by Ather Energy Limited (“Ather”) in
+    this file is for informational purposes only. All information/code in this
+    file is provided in good faith.  However, Ather makes no representation or
+    warranty of any kind, express or implied, regarding the accuracy, adequacy,
+    validity, reliability, availability or completeness of any information/code
+    in the file. Under no circumstances shall Ather have any liability to you
+    for any loss or damage of any kind incurred as a result of reliance on any
+    information/code provided in the file. Your reliance on any Ather’s
+    information/code in the file is solely at your own risk.
+
+    @file
+    asdk_{0}.h
+
+    @path
+    inc/asdk_{0}.h
+
+    @Created on
+    {2}
+
+    @Author
+    {3}
+
+    @Copyright
+    Copyright (c) Ather Energy Limited. All rights reserved.
+
+    @brief
+    This file prototypes the {1} DAL module of ASDK.
+*/
+
+#ifndef ASDK_{1}_H
+#define ASDK_{1}_H
+
+/*==============================================================================
+
+                               INCLUDE FILES
+
+==============================================================================*/
+
+/* standard includes ************************* */
+
+/* asdk includes ***************************** */
+
+/* dal includes ****************************** */
+
+/* sdk includes ****************************** */
+
+/*==============================================================================
+
+                      DEFINITIONS AND TYPES : MACROS
+
+==============================================================================*/
+
+/*==============================================================================
+
+                      DEFINITIONS AND TYPES : ENUMS
+
+==============================================================================*/
+
+/*==============================================================================
+
+                   DEFINITIONS AND TYPES : STRUCTURES
+
+==============================================================================*/
+
+/*==============================================================================
+
+                           EXTERNAL DECLARATIONS
+
+==============================================================================*/
+
+/*==============================================================================
+
+                           FUNCTION PROTOTYPES
+
+==============================================================================*/
+
+#endif /* ASDK_{1}_H */

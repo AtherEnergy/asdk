@@ -1,0 +1,23 @@
+configuration:
+  requirements:
+    cmake:
+      windows:  https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-windows-x86_64.zip
+      linux:  https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.tar.gz
+      darwin: https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-macos10.10-universal.tar.gz
+    ninja:
+      windows:  https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip
+      linux:  https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
+      darwin: https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-mac.zip
+
+  toolchains:
+    arm:
+      # default version for arm
+      gcc-arm-none-eabi-7-2018-q2-update:
+        windows:  https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2018q2/gcc-arm-none-eabi-7-2018-q2-update-win32.zip
+        linux:  https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2018q2/gcc-arm-none-eabi-7-2018-q2-update-linux.tar.bz2
+        darwin: https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2018q2/gcc-arm-none-eabi-7-2018-q2-update-mac.tar.bz2
+    c2000:
+      toolchain_v1:
+        windows:
+        linux:
+        darwin:

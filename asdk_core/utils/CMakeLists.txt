@@ -1,0 +1,2 @@
+ADD_SUBDIRECTORY(image_magic)
+ADD_SUBDIRECTORY(srec)

@@ -1,0 +1,7 @@
+pyyaml
+requests
+sphinx
+breathe
+sphinx-rtd-theme
+myst-parser
+sphinx-multiversion
