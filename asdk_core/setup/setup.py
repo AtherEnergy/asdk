@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # imports
 
 from __future__ import print_function
@@ -15,6 +17,7 @@ import stat
 # initialzed variables
 
 g_os_type = platform.system().lower()
+g_processor = platform.machine().lower()
 g_script_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 g_script_name = os.path.splitext(sys.argv[0])[0]
 g_req_filepath = os.path.join(g_script_path, "requirements.txt")
@@ -33,12 +36,14 @@ if [ -f $HOME/.asdk_environment ]; then
     . $HOME/.asdk_environment
 fi\n"""
 
-g_platform_choices = ["arm", "c2000"]
+g_platform_choices = ["arm"]
 g_arm_choices = ['gcc-arm-none-eabi-7-2018-q2-update']
 g_c2000_choices = ["None"]
 
 g_env_asdk_cmake_root = "ASDK_CMAKE_ROOT"
 g_env_asdk_ninja_root = "ASDK_NINJA_ROOT"
+g_env_asdk_openocd_root = "ASDK_OPENOCD_ROOT"
+g_env_asdk_openocd_version = "ASDK_OPENOCD_VERSION"
 g_env_target_toolchain_root_template = "ASDK_<ARCH>_TOOLCHAIN_ROOT"
 g_env_target_toolchain_version_template = "ASDK_<ARCH>_TOOLCHAIN_VERSION"
 g_os_env = os.environ
@@ -52,6 +57,7 @@ g_env_variables = dict()
 g_cmake_installed = False
 g_ninja_installed = False
 g_toolchain_installed = False
+g_openocd_installed = False
 
 # function definitions
 
@@ -180,16 +186,20 @@ def parse_user_args():
 
     # add cli arguments
     arg_parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.RawTextHelpFormatter)
+    
+    # required arguments
+    
+    required_args = arg_parser.add_argument_group('required named arguments')
 
     # --platform - MCU selection
-    arg_parser.add_argument('-p', '--platform',
-                            help="Install platform-specific toolchain.\nAllowed values:\n" +
-                            ", ".join(g_platform_choices),
+    required_args.add_argument('-p', '--platform',
+                            help="Install platform-specific toolchain.\nAllowed values: [" +
+                            ", ".join(g_platform_choices) + "]",
                             type=str,
                             default="arm",
                             choices=g_platform_choices,
-                            required=False,
+                            required=True,
                             metavar=""
                             )
 
@@ -197,22 +207,15 @@ def parse_user_args():
     version_group_parser = arg_parser.add_mutually_exclusive_group()
 
     version_group_parser.add_argument("--arm-version",
-                                      help="ARM toolchain version. Allowed values:\n[" + ", ".join(
+                                      help="ARM toolchain version\nAllowed values: [" + ", ".join(
                                           g_arm_choices) + "]",
                                       type=str,
                                       default="gcc-arm-none-eabi-7-2018-q2-update",
                                       choices=g_arm_choices,
                                       required=False,
                                       metavar="")
-
-    version_group_parser.add_argument("--c2000-version",
-                                      help="TI C2000 toolchain version. Allowed values:\n[" + ", ".join(
-                                          g_c2000_choices) + "]",
-                                      type=str,
-                                      default="None",
-                                      choices=g_c2000_choices,
-                                      required=False,
-                                      metavar="")
+    
+    # optional arguments
 
     # --force
     arg_parser.add_argument("-f", "--force",
@@ -256,14 +259,14 @@ def get_config():
     return cfg
 
 
-def _progress_bar(count, block_size, total):
+def _progress_bar_file_download(count, block_size, total):
     progress = int((count*block_size*100) / total)
+    print('downloading {:d}%'.format(progress), end='\r')
 
-    if (progress >= 100):
-        print('downloading {:d}%'.format(progress), end='\n')
-    else:
-        print('downloading {:d}%'.format(progress), end='\r')
-        sys.stdout.flush()
+
+def _progress_bar_zip_extract(count, total):
+    progress = int((count * 100) / total)
+    print('extracting {:d}%'.format(progress), end='\r')
 
 
 def _execute_download(user_url, timeout_s):
@@ -289,7 +292,7 @@ def _execute_download(user_url, timeout_s):
                 for chunk_counter, chunk_data in enumerate(resp.iter_content(chunk_size=8192)):
                     if chunk_data:
                         f.write(chunk_data)
-                        _progress_bar(int(chunk_counter), 8192, int(filesize))
+                        _progress_bar_file_download(int(chunk_counter), 8192, int(filesize))
         except requests.exceptions.RequestException as error:
             download_status = False
             dest_or_error = error
@@ -312,7 +315,7 @@ def _download(url, retry=3, read_timeout=30):
         dwld_status, dwld_file_or_error = _execute_download(url, read_timeout)
 
         if (dwld_status):
-            log("debug", "Downloaded to '%s'", dwld_file_or_error)
+            log("debug", "downloaded to '%s'", dwld_file_or_error)
             log("info", "downloaded successfully")
             break
         else:
@@ -329,6 +332,7 @@ def _download(url, retry=3, read_timeout=30):
 
 
 def _extract(src_path, dest_path):
+    extracted_root_dir = str()
     ext_match = re.search(g_zip_tar_pattern, src_path)
 
     if (ext_match != None):
@@ -338,12 +342,27 @@ def _extract(src_path, dest_path):
             # zip file
             if (file_ext == ".zip"):
                 with zipfile.ZipFile(src_path, 'r') as zip_ref:
-                    zip_ref.extractall(dest_path)
+                    zip_list = zip_ref.infolist()
+                    extracted_root_dir = os.path.commonpath(item.filename for item in zip_list)
+                    log("info", "extracting '%s' to '%s'...", extracted_root_dir, dest_path)
+                    total_count = len(zip_list)
+                    extracted_count = 0
+                    for item in zip_list:
+                        extracted_count += 1
+                        zip_ref.extract(member=item, path=dest_path)
+                        _progress_bar_zip_extract(extracted_count, total_count)
             # tar file
             else:
-                tar = tarfile.open(src_path)
-                tar.extractall(dest_path)
-                tar.close()
+                with tarfile.open(src_path, 'r') as tar_ref:
+                    tar_list = tar_ref.getmembers()
+                    extracted_root_dir = os.path.commonpath(item.name for item in tar_list)
+                    log("info", "extracting '%s' to '%s'...", extracted_root_dir, dest_path)
+                    total_count = len(tar_list)
+                    extracted_count = 0
+                    for item in tar_list:
+                        tar_ref.extract(member=item, path=dest_path)
+                        extracted_count += 1
+                        _progress_bar_zip_extract(extracted_count, total_count)
         except Exception as error:
             log("error", "Error occured while extracing file.\nException: {0}".format(error.__str__()))
             sys.exit(1)
@@ -352,22 +371,15 @@ def _extract(src_path, dest_path):
     else:
         log("error", "Unsupported file extension '%s'", src_path)
         sys.exit(1)
-
-
-def _get_zip_filename(filepath):
-    filename = os.path.basename(filepath)
-
-    if (re.search(g_zip_tar_pattern, filename) != None):
-        filename = re.split(g_zip_tar_pattern, filename)[0]
-        return filename
-
-    return None
+    
+    return extracted_root_dir
 
 
 def check_requirements():
     global g_cmake_installed
     global g_ninja_installed
     global g_toolchain_installed
+    global g_openocd_installed
 
     log_fun_marker(check_requirements)
 
@@ -423,7 +435,19 @@ def check_requirements():
                     g_toolchain_installed = True
                     log("info", "Toolchain is already installed.")
                     log("debug", toolchain_filepath)
-                    
+
+        # check if openocd is available
+        if g_env_asdk_openocd_root.upper() in g_os_env:
+            openocd_bin_path = os.path.join(g_os_env.get(g_env_asdk_openocd_root), g_os_env.get(g_env_asdk_openocd_version), "bin")
+            if g_os_type == "windows":
+                openocd_filepath = os.path.join(openocd_bin_path, "openocd.exe")
+            else:
+                openocd_filepath = os.path.join(openocd_bin_path, "openocd")
+
+            if (os.path.isfile(openocd_filepath)):
+                g_openocd_installed = True
+                log("info", "OpenOCD is already installed.")
+                log("debug", openocd_filepath)
     
     log_fun_marker(check_requirements, True)
 
@@ -444,18 +468,14 @@ def install_asdk_requirements(cfg):
         cmake_url = requirements.get("cmake")[g_os_type]
         cmake_dwld_path = _download(cmake_url)
 
-        cmake_dest = g_users_destination
-
         # extract
-        cmake_dest = g_users_destination
-        filename = _get_zip_filename(cmake_dwld_path)
-        log("info", "extracting '%s' to '%s'...", filename, cmake_dest)
-        _extract(cmake_dwld_path, cmake_dest)
+        cmake_dest = os.path.join(g_users_destination, "cmake")
+        extracted_root_dirname = _extract(cmake_dwld_path, cmake_dest)
 
         # assign env variables
         if (g_os_type == "darwin"):
-            filename = os.path.join(filename, "CMake.app", "Contents")
-        g_env_variables["ASDK_CMAKE_ROOT"] = os.path.join(cmake_dest, filename)
+            extracted_root_dirname = os.path.join(extracted_root_dirname, "Contents")
+        g_env_variables["ASDK_CMAKE_ROOT"] = os.path.join(cmake_dest, extracted_root_dirname)
 
     if not g_ninja_installed:
         # download
@@ -465,18 +485,33 @@ def install_asdk_requirements(cfg):
 
         # extract
         ninja_dest = os.path.join(g_users_destination, "ninja")
-        filename = os.path.basename(cmake_dwld_path)
-        log("info", "extracting '%s' to '%s'...", filename, ninja_dest)
-        _extract(ninja_dwld_path, ninja_dest)
+        extracted_root_filename = _extract(ninja_dwld_path, ninja_dest)
 
         # add executable permissions for ninja on linux and mac
-        ninja_bin = os.path.join(ninja_dest, "ninja")
         if (g_os_type != "windows"):
-                st = os.stat(ninja_bin)
-                os.chmod(ninja_bin, st.st_mode | stat.S_IEXEC)
+            ninja_bin_filepath = os.path.join(ninja_dest, extracted_root_filename)
+            st = os.stat(ninja_bin_filepath)
+            os.chmod(ninja_bin_filepath, st.st_mode | stat.S_IEXEC)
 
         # assign env variables
         g_env_variables["ASDK_NINJA_ROOT"] = ninja_dest
+    
+    if not g_openocd_installed:
+        # download
+        log("info", "getting openocd...")        
+        if (g_os_type == "darwin"):
+            openocd_url = requirements.get("openocd")[g_os_type][g_processor]
+        else:
+            openocd_url = requirements.get("openocd")[g_os_type]
+        openocd_dwld_path = _download(openocd_url)
+
+        # extract
+        openocd_dest = os.path.join(g_users_destination, "openocd")
+        extracted_root_dirname = _extract(openocd_dwld_path, openocd_dest)
+
+        # assign env variables
+        g_env_variables["ASDK_OPENOCD_ROOT"] = openocd_dest
+        g_env_variables["ASDK_OPENOCD_VERSION"] = extracted_root_dirname
 
     log_fun_marker(install_asdk_requirements, True)
 
@@ -516,7 +551,7 @@ def install_asdk_toolchain(cfg):
             toolchain_dest = os.path.join(toolchain_root, toolchain_version)
         else:  # for linux and darwin
             toolchain_dest = toolchain_root
-        log("info", "extracting '%s' to '%s'...", filename, toolchain_dest)
+        # log("info", "extracting '%s' to '%s'...", filename, toolchain_dest)
         _extract(toolchain_dwld_path, toolchain_dest)
 
         # assign env variables
@@ -531,7 +566,7 @@ def set_env_variables(var_kv_pairs):
         log("info", "Setting envrionment variables...")
         if (g_os_type == "windows"):
             for var, val in var_kv_pairs.items():
-                log("info", "setting '{0}' variable".format(var))
+                log("debug", "setting variable '{0}={1}'".format(var, val))
                 if (os.system("SETX {0} {1}".format(var, val)) != 0):
                     log("error", "Failed to set variable.")
                     sys.exit(1)
@@ -541,7 +576,7 @@ def set_env_variables(var_kv_pairs):
         else:
             with open(g_asdk_env_file, "w+") as asdk_f:
                 for var, val in var_kv_pairs.items():
-                    log("info", "setting '{0}' variable".format(var))
+                    log("debug", "setting variable '{0}={1}'".format(var, val))
                     asdk_f.write("export {0}={1}\n".format(var, val))
                 asdk_f.close
 
@@ -560,7 +595,7 @@ def set_env_variables(var_kv_pairs):
             # check if ~/.asdk_environment is already sourced
             # if not then source it
             if not (g_bashrc_text in bash_buffer):
-                log("debug", "sourcing '%s' file from '%s' file.",
+                log("debug", "source '%s' file from '%s' file.",
                     g_asdk_env_file, bash_env_file)
                 with open(bash_env_file, "a+") as bash_w:
                     bash_w.write(g_bashrc_text)

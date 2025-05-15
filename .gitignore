@@ -1,6 +1,8 @@
 # files
 .DS_Store
 **/.DS_Store
+*.bak
+*.log
 
 # directories
 **/.vscode/
