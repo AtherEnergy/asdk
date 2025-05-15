@@ -41,8 +41,6 @@ asdk_adc_config_t adc_conf = {
 
 int main()
 {
-    uint8_t input_state = 0;    // variable to store the state of the mcu pin
-
     asdk_sys_enable_interrupts();
     
     asdk_clock_config_t clk_cfg = {
@@ -53,7 +51,7 @@ int main()
     },
     .xtal_trim = {0}};
 
-    asdk_clock_init(clk_cfg);
+    asdk_clock_init(&clk_cfg);
 
     // Initialising the gpio for led toggling
     asdk_gpio_init(&user_led_1);
