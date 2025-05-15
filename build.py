@@ -43,7 +43,12 @@ g_preset_choices = [
     "button_polling",
     "button_interrupt",
     "timer_periodic",
-    "timer_compare"
+    "timer_compare",
+    "timer_capture",
+    "adc_blocking",
+    "adc_non_blocking",
+    "can_send",
+    "can_echoback",
 ]
 
 # build command templates
