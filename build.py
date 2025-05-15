@@ -6,6 +6,28 @@ import sys
 import shutil
 import platform
 import argparse
+import textwrap as _textwrap
+import re
+
+# to wrap text in help messages
+class PreserveWhiteSpaceWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    def __add_whitespace(self, idx, iWSpace, text):
+        if idx == 0:
+            return text
+        return (" " * iWSpace) + text
+
+    def _split_lines(self, text, width):
+        textRows = text.splitlines()
+        for idx,line in enumerate(textRows):
+            search = re.search(r'\s*[0-9\-]{0,}\.?\s*', line)
+            if line.strip() == "":
+                textRows[idx] = " "
+            elif search:
+                lWSpace = search.end()
+                lines = [self.__add_whitespace(i,lWSpace,x) for i,x in enumerate(_textwrap.wrap(line, 80))]
+                textRows[idx] = lines
+
+        return [item for sublist in textRows for item in sublist]
 
 # global variables
 
@@ -77,7 +99,7 @@ def _parse_args():
 
     # add cli arguments
     g_arg_parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter)
+        formatter_class=PreserveWhiteSpaceWrapRawTextHelpFormatter)
 
     # command: build.py --platform <mcu> [--build <build_dir>] [--clean] --type <build_type> [--example <example>]
     # command: build.py -p <mcu> [-b <build_dir>] [--clean] -t <build_type> [-e <example>]
