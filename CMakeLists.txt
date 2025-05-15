@@ -39,8 +39,6 @@ IF (USE_ASDK_EXAMPLE)
 
     AUX_SOURCE_DIRECTORY(${APP_SRC_PATH} APP_SRC)
 
-    MESSAGE("APP_SRC: " ${APP_SRC})
-
 ### compile "app" only
 
 ELSE()

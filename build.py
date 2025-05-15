@@ -61,6 +61,7 @@ g_mcu_choices = [
 ]
 
 g_preset_choices = [
+    "blank",
     "blinky",
     "button_polling",
     "button_interrupt",
@@ -147,7 +148,7 @@ def _parse_args():
     else:
         g_parsed_args = g_arg_parser.parse_args()
 
-    if ("Current working directory" not in g_parsed_args.build):
+    if (g_parsed_args.build is not None):
         g_users_build_dir = os.path.join(g_parsed_args.build, g_parsed_args.type.lower())
     else:
         g_users_build_dir = os.path.join(g_users_build_dir, g_parsed_args.type.lower())

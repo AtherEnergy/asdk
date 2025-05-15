@@ -18,7 +18,7 @@ int main()
     },
     .xtal_trim = {0}};
 
-    asdk_clock_init(clk_cfg);
+    asdk_clock_init(&clk_cfg);
 
 
     for (;;)
