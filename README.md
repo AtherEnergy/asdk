@@ -110,6 +110,8 @@ source /Users/ajmeri.j/.bash_profile
 
 ### 3. Setup platform
 
+Please follow the setup instructions for your platform [here](./platform/readme.md).
+
 ### 4. Build application
 
 To build the application run the build script as shown below.
