@@ -8,8 +8,8 @@ The table below summarizes the current status of platform and board support in A
 
 | Platform            | Board/MCU                                                                                                   | Status         | Development Branch |
 |---------------------|------------------------------------------------------------------------------------------------------------|---------------|--------------------|
-| Infineon            | [Traveo 2 CYT2B75 Starter Kit](https://www.infineon.com/cms/en/product/evaluation-boards/cytvii-b-e-1m-sk/) | ✅ Supported       | main, development |
-| STMicroelectronics  | [STM32F4 Discovery](https://www.st.com/en/evaluation-tools/stm32f4discovery.html)                          | 🟡 In Progress | platform/stm32 |
+| Infineon            | [Traveo 2 CYT2B75 Starter Kit](https://www.infineon.com/cms/en/product/evaluation-boards/cytvii-b-e-1m-sk/) | ✅ Supported       | [main](https://github.com/AtherEnergy/asdk/tree/main), [development](https://github.com/AtherEnergy/asdk/tree/development) |
+| STMicroelectronics  | [STM32F4 Discovery](https://www.st.com/en/evaluation-tools/stm32f4discovery.html)                          | 🟡 In Progress | [platform/stm32f4](https://github.com/AtherEnergy/asdk/tree/platform/stm32f4) |
 | Texas Instruments   | [F280039C](https://www.ti.com/tool/LAUNCHXL-F280039C), [F28P55X](https://www.ti.com/tool/LAUNCHXL-F28P55X)  | 🟡 In Progress | platform/c2000 |
 | NXP                 | [S32K144](https://www.nxp.com/design/design-center/development-boards-and-designs/automotive-development-platforms/s32k-mcu-platforms/s32k144-q100-evaluation-board-for-automotive-general-purpose:S32K144EVB) | ⬜ Not Started | |
 | Renesas             | [RA6M4](https://www.renesas.com/en/products/microcontrollers-microprocessors/ra-cortex-m-mcus/ek-ra6m4-evaluation-kit-ra6m4-mcu-group) | ⬜ Not Started | |
