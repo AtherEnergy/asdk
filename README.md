@@ -54,7 +54,7 @@ The following versions have been tested and are recommended for best results:
   - macOS Ventura (13.6.1, Apple M1)
 - **Python:** 3.8 or higher
 
-> [!info]
+> [!NOTE]
 > Please use these versions to ensure compatibility and a smooth development experience.
 
 ### 1. Clone the Repository
