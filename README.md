@@ -57,7 +57,7 @@ Follow these steps to set up your development environment and build your first a
 Clone ASDK to your local machine:
 
 ```
-git clone https://github.com/your-org/asdk.git
+git clone https://github.com/AtherEnergy/asdk.git
 cd asdk
 ```
 
