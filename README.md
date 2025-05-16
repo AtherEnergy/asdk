@@ -96,7 +96,7 @@ Follow the platform-specific setup instructions in [`platform/readme.md`](./plat
 Build the default application for a supported platform:
 
 ```
-python build.py -p cyt2b75_m0plus -b build -t debug -c
+python build.py -p stm32f4 -b build -t debug -c
 ```
 
 <details>
@@ -118,13 +118,11 @@ python build.py -p cyt2b75_m0plus -b build -t debug -c
 Application Version: 1.0.0
 CMake version:3.26.4
 Build type: Debug
-CYT2B75_CORE: m0plus
 -- The ASM compiler identification is GNU
 -- Found assembler: C:/Users/<username>/asdk_toolchain/arm/gcc-arm-none-eabi-7-2018-q2-update/bin/arm-none-eabi-gcc.exe
 
-Platform: CYT2B75
+Platform: STM32F4
 
-CYT2B75_CORE: m0plus
 In Catalyst
 -- Checking ASDK scheduler option
 -- Checking ASDK scheduler option - disabled
@@ -164,7 +162,7 @@ Peripheral examples are located in the `examples/` directory. Each example inclu
 To build an example (e.g., `blinky`):
 
 ```
-python build.py -p cyt2b75_m0plus -e blinky -t debug
+python build.py -p stm32f4 -e blinky -t debug
 ```
 
 ---
