@@ -75,28 +75,29 @@ Disclaimer:
  */
 typedef enum
 {
-    ASDK_SYS_RESET_DEFAULT = 0, /*!< Default value */
-    ASDK_SYS_RESET_WDG,         /*!< Watchdog reset */
-    ASDK_SYS_RESET_SEGV,        /*!< */
-    ASDK_SYS_RESET_SW,          /*!< Software reset */
-    ASDK_SYS_RESET_HOST,        /*!< Host reset */
-    ASDK_SYS_RESET_LOW_VOLTAGE, /*!< Reset due to low voltage */
-    ASDK_SYS_RESET_POWERON,     /*!< Power on reset */
-    ASDK_SYS_RESET_EXT_PIN,     /*!< Reset due to external pin  */
-    ASDK_SYS_RESET_CORE_LOCK,   /*!< Reset due to core lock */
-    ASDK_SYS_RESET_CLOCK_LOSS,  /*!< Reset due to clock loss */
-    ASDK_SYS_RESET_JTAG_RESET,  /*!< JTAG reset */
-    ASDK_SYS_RESET_PMIC,        /*!< PMIC status triggered a reset */
-    ASDK_SYS_RESET_OVDVDDD,     /*!< Reset due to over voltage detection on the external VDDD supply */
-    ASDK_SYS_RESET_OVDVDDA,     /*!< Reset due to over voltage detection on the external VDDA supply */
-    ASDK_SYS_RESET_OVDVCCD,     /*!< Reset due to over voltage detection on the internal core VCCD supply */
-    ASDK_SYS_RESET_BODVDDA,     /*!< Reset due to external VDDA supply crossed the brown-out limit */
-    ASDK_SYS_RESET_BODVCCD,     /*!< Reset due to internal VCCD core supply crossed the brown-out limit */
-    ASDK_SYS_RESET_DPSLP_FAULT, /*!< he fault logging system requested a reset from its DeepSleep logic */
-    ASDK_SYS_RESET_PXRES,       /*!< Programmable XRES triggered */
-    ASDK_SYS_REST_STRUCT_XRES,  /*!< Structural reset was asserted */
-    ASDK_SYS_RESET_UNKNOWN,     /*!< Other reason, please refer to platform. */
-    ASDK_SYS_RESET_MAX          /*!< Total number of reset reasons */
+    ASDK_SYS_RESET_DEFAULT = 0,    /*!< Default value */
+    ASDK_SYS_RESET_WDG,            /*!< Watchdog reset */
+    ASDK_SYS_RESET_SEGV,           /*!< */
+    ASDK_SYS_RESET_SW,             /*!< Software reset */
+    ASDK_SYS_RESET_HOST,           /*!< Host reset */
+    ASDK_SYS_RESET_LOW_VOLTAGE,    /*!< Reset due to low voltage */
+    ASDK_SYS_RESET_POWERON,        /*!< Power on reset */
+    ASDK_SYS_RESET_EXT_PIN,        /*!< Reset due to external pin  */
+    ASDK_SYS_RESET_CORE_LOCK,      /*!< Reset due to core lock */
+    ASDK_SYS_RESET_CLOCK_LOSS,     /*!< Reset due to clock loss */
+    ASDK_SYS_RESET_JTAG_RESET,     /*!< JTAG reset */
+    ASDK_SYS_RESET_PMIC,           /*!< PMIC status triggered a reset */
+    ASDK_SYS_RESET_OVDVDDD,        /*!< Reset due to over voltage detection on the external VDDD supply */
+    ASDK_SYS_RESET_OVDVDDA,        /*!< Reset due to over voltage detection on the external VDDA supply */
+    ASDK_SYS_RESET_OVDVCCD,        /*!< Reset due to over voltage detection on the internal core VCCD supply */
+    ASDK_SYS_RESET_BODVDDA,        /*!< Reset due to external VDDA supply crossed the brown-out limit */
+    ASDK_SYS_RESET_BODVCCD,        /*!< Reset due to internal VCCD core supply crossed the brown-out limit */
+    ASDK_SYS_RESET_DPSLP_FAULT,    /*!< he fault logging system requested a reset from its DeepSleep logic */
+    ASDK_SYS_RESET_PXRES,          /*!< Programmable XRES triggered */
+    ASDK_SYS_REST_STRUCT_XRES,     /*!< Structural reset was asserted */
+    ASDK_SYS_RESET_LOW_POWER_MGMT, /*!< Low power management reset occurred */
+    ASDK_SYS_RESET_UNKNOWN,        /*!< Other reason, please refer to platform. */
+    ASDK_SYS_RESET_MAX             /*!< Total number of reset reasons */
 } asdk_sys_reset_t;
 
 /** @} */ // end of asdk_sys_enum_group

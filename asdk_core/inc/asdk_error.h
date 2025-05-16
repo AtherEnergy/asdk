@@ -53,6 +53,7 @@ typedef enum
     ASDK_GPIO_ERROR_INVALID_GPIO_MODE,
     ASDK_GPIO_ERROR_INIT,
     ASDK_GPIO_ERROR_DEINIT,
+    ASDK_GPIO_ERROR_INTERRUPT_PRIORITY_EXCEEDED,
     ASDK_GPIO_ERROR_MAX,
 
     ASDK_CLOCK_SUCCESS = 201,
@@ -69,6 +70,7 @@ typedef enum
     ASDK_PINMUX_ERROR_INVALID_ALTERNATE_FUNCTION, /*!< The Alternate function assigned to the MCU pin is invalid. Refer @ref asdk_pinmux_modules_t for valid Alternate Function */
     ASDK_PINMUX_ERROR_INIT_CONFIG_ERROR,          /*!< The configuration passed for Pinmux init is invalid*/
     ASDK_PINMUX_ERROR_DEINIT_CONFIG_ERROR,        /*!< The configuration passed for Pinmux de-init is invalid*/
+    ASDK_PINMUX_ERROR_INVALID_GPIO_SLEW_RATE,     /*!< The configuration passed for GPIO slew rate is invalid */
     ASDK_PINMUX_ERROR_ERROR_MAX,
 
     ASDK_SPI_STATUS_SUCCESS = 401,             /*!< The SPI status is Success*/
@@ -117,7 +119,6 @@ typedef enum
     ASDK_CAN_ERROR_CLOCK_NOT_ENABLED, /*!< Error occured while initializing CAN peripheral clock. */
     ASDK_CAN_ERROR_UNSUPPORTED_BAUDRATE, /*!< The configured baudrate is invalid. Refer @ref asdk_can_baudrate_t for supported baudrates. */
     ASDK_CAN_ERROR_INVALID_DLC, /*!< The configured DLC is invalid. Refer @ref asdk_can_dlc_t for supported DLC values. */
-    ASDK_CAN_ERROR_INVALID_MODE, 
     ASDK_CAN_ERROR_INIT_FAILED,
     ASDK_CAN_ERROR_INVALID_BAUDRATE,
     ASDK_CAN_ERROR_INVALID_DATA_BAUDRATE,
