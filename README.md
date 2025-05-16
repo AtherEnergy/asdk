@@ -8,7 +8,7 @@ The table below summarizes the current status of platform and board support in A
 
 | Platform            | Board/MCU                                                                                                   | Status         | Development Branch |
 |---------------------|------------------------------------------------------------------------------------------------------------|---------------|--------------------|
-| Infineon            | [Traveo 2 CYT2B75 Starter Kit](https://www.infineon.com/cms/en/product/evaluation-boards/cytvii-b-e-1m-sk/) | ✅ Ready       | main, development |
+| Infineon            | [Traveo 2 CYT2B75 Starter Kit](https://www.infineon.com/cms/en/product/evaluation-boards/cytvii-b-e-1m-sk/) | ✅ Supported       | main, development |
 | STMicroelectronics  | [STM32F4 Discovery](https://www.st.com/en/evaluation-tools/stm32f4discovery.html)                          | 🟡 In Progress | platform/stm32 |
 | Texas Instruments   | [F280039C](https://www.ti.com/tool/LAUNCHXL-F280039C), [F28P55X](https://www.ti.com/tool/LAUNCHXL-F28P55X)  | 🟡 In Progress | platform/c2000 |
 | NXP                 | [S32K144](https://www.nxp.com/design/design-center/development-boards-and-designs/automotive-development-platforms/s32k-mcu-platforms/s32k144-q100-evaluation-board-for-automotive-general-purpose:S32K144EVB) | ⬜ Not Started | |
@@ -46,11 +46,16 @@ Follow these steps to set up your development environment and build your first a
 
 ### Prerequisites
 
+The following versions have been tested and are recommended for best results:
+
 - **Operating System:**
-  - Windows 11 (10.0.22621+)
+  - Windows 11 (10.0.22621)
   - Ubuntu 20.04.5 LTS (x86_64)
   - macOS Ventura (13.6.1, Apple M1)
 - **Python:** 3.8 or higher
+
+> [!info]
+> Please use these versions to ensure compatibility and a smooth development experience.
 
 ### 1. Clone the Repository
 
@@ -137,7 +142,7 @@ CMake Warning:
     TARGET_RTOS
 
 
--- Build files have been written to: C:/Users/<username>/Desktop/work/github/asdk/build/debug
+-- Build files have been written to: C:/Users/<username>/Desktop/github/asdk/build/debug
 [67/69] Linking C executable asdk_app.elf
 Memory region         Used Size  Region Size  %age Used
             SRAM:        3456 B        62 KB      5.44%

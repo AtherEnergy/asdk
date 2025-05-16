@@ -2,7 +2,7 @@
 
 ## Fork
 
-Create your own fork of the ASDK repository. Follow the [getting started](./getting_started.md##setup-build-environment-and-toolchain) guide to install relevant toolchain and to setup the build environment. Ensure you are able to build ASDK successfully without any error.
+Create your own fork of the ASDK repository. Follow the [getting started](../../README.md#getting-started) guide to install relevant toolchain and to setup the build environment. Ensure you are able to build ASDK successfully without any error.
 
 ## Issues
 
