@@ -1,0 +1,474 @@
+diff --git a/platform/Infineon/cyt2b75/sdk/common/src/drivers/canfd/cy_canfd.c b/platform/Infineon/cyt2b75/sdk/common/src/drivers/canfd/cy_canfd.c
+index e5c118e..c6dc1f2 100644
+--- a/platform/Infineon/cyt2b75/sdk/common/src/drivers/canfd/cy_canfd.c
++++ b/platform/Infineon/cyt2b75/sdk/common/src/drivers/canfd/cy_canfd.c
+@@ -18,7 +18,7 @@
+ #if defined(__cplusplus)
+ extern "C" {
+ #endif
+-
++  
+ #define SIZE_OF_SID_FILTER_IN_WORD      1u
+ #define SIZE_OF_EXTID_FILTER_IN_WORD    2u
+ #define SIZE_OF_TXEVENT_FIFO_IN_WORD    2u
+@@ -142,7 +142,7 @@ static uint32_t* Cy_CANFD_CalcRxBufAdrs(cy_pstc_canfd_type_t pstcCanFD, uint8_t
+ static uint32_t* Cy_CANFD_CalcTxBufAdrs(cy_pstc_canfd_type_t pstcCanFD, uint8_t u8MsgBuf);
+ static uint32_t* Cy_CANFD_CalcRxFifoAdrs(cy_pstc_canfd_type_t pstcCanFD, uint8_t u8FifoNumber, uint32_t u32GetIndex);
+ static uint8_t Cy_CANFD_CalculateChannelIdx(cy_pstc_canfd_type_t pstcCanFD);
+-static void Cy_CANFD_ErrorHandling(cy_pstc_canfd_type_t pstcCanFD);
++static void Cy_CANFD_ErrorHandling(cy_pstc_canfd_type_t pstcCanFD, uint32_t error_interrupt_status);
+ 
+ /*******************************************************************************
+ * Function Name: Cy_CANFD_GetMsgramOffset
+@@ -416,52 +416,114 @@ static uint8_t Cy_CANFD_CalculateChannelIdx(cy_pstc_canfd_type_t pstcCanFD)
+  ** \param [in] pstcCanFD           Pointer to register area of a CAN FD channel.
+  **
+  ******************************************************************************/
+-static void Cy_CANFD_ErrorHandling(cy_pstc_canfd_type_t pstcCanFD)
++static void Cy_CANFD_ErrorHandling(cy_pstc_canfd_type_t pstcCanFD, uint32_t error_interrupt_status)
+ {
+     uint8_t u8Idx = 0;
++    cy_stc_canfd_context_t* pstcCanFDContext;
++    volatile stc_CANFD_CH_M_TTCAN_t*  pstcCanFDChMTTCAN;
++    uint32_t error = 0;
+     
+     if(pstcCanFD == NULL)
+     {
+         return;
+     }
++
++    pstcCanFDContext = Cy_CANFD_GetContext(pstcCanFD);
+     
+     u8Idx = Cy_CANFD_CalculateChannelIdx(pstcCanFD);
+-    
+-    /* Access to Reserved Address */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1ARA == 1)
+-    {
+-        m_au16LastErrorCode[u8Idx] = 0x0001;
+-    }
+ 
+-    /* Protocol Error in Data Phase */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1PED == 1)
+-    {
+-        m_au16LastErrorCode[u8Idx] = 0x0002;
+-    }
++    pstcCanFDChMTTCAN = &pstcCanFD->M_TTCAN;
+ 
+-    /* Protocol Error in Arbitration Phase */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1PEA == 1)
+-    {
+-        m_au16LastErrorCode[u8Idx] = 0x0003;
+-    }
++    // find the right most bit
++    error = error_interrupt_status ^ (error_interrupt_status & (error_interrupt_status - 1));
+ 
+-    /* Watchdog Interrupt */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1WDI == 1)
++    switch (error)
+     {
+-        m_au16LastErrorCode[u8Idx] = 0x0004;
+-    }
++        /* Error: Access to Reserved Address */
++        case 0x20000000:    // bit-29
++        pstcCanFDChMTTCAN->unIR.stcField.u1ARA = 1;
++        m_au16LastErrorCode[u8Idx] = 1;
++        break;
+ 
+-    /* Bus_Off Status Interrupt */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1BO_ == 1)
+-    {
+-        m_au16LastErrorCode[u8Idx] = 0x0005;
+-    }
++        /* Error: Protocol Error in Data Phase */
++        case 0x10000000:    // bit-28
++        pstcCanFDChMTTCAN->unIR.stcField.u1PED = 1;
++        m_au16LastErrorCode[u8Idx] = 2;
++        break;
+ 
+-    /* Bit Error Uncorrected Interrupt */
+-    if (pstcCanFD->M_TTCAN.unIR.stcField.u1BEU == 1)
+-    {
+-        m_au16LastErrorCode[u8Idx] = 0x0006;
++        /* Error: Protocol Error in Arbitration Phase */
++        case 0x08000000:    // bit-27
++        pstcCanFDChMTTCAN->unIR.stcField.u1PEA = 1;
++        m_au16LastErrorCode[u8Idx] = 3;
++        break;
++
++        /* Error: Watchdog */
++        case 0x04000000:    // bit-26
++        pstcCanFDChMTTCAN->unIR.stcField.u1WDI = 1;
++        m_au16LastErrorCode[u8Idx] = 4;
++        break;
++
++        /* Error: Bus-off */
++        case 0x02000000:    // bit-25
++        pstcCanFDChMTTCAN->unIR.stcField.u1BO_ = 1;
++        m_au16LastErrorCode[u8Idx] = 5;
++        break;
++
++        /* Error: Warning */
++        case 0x01000000:    // bit-24
++        pstcCanFDChMTTCAN->unIR.stcField.u1EW_ = 1;
++        m_au16LastErrorCode[u8Idx] = 6;
++        break;
++
++        /* Error: Error Passive */
++        case 0x00800000:    // bit-23
++        pstcCanFDChMTTCAN->unIR.stcField.u1EP_ = 1;
++        m_au16LastErrorCode[u8Idx] = 7;
++        break;
++
++        /* Error: Error Logging Overflow */
++        case 0x00400000:    // bit-22
++        pstcCanFDChMTTCAN->unIR.stcField.u1ELO = 1;
++        m_au16LastErrorCode[u8Idx] = 8;
++        break;
++
++        /* Error: Bit Error Uncorrected */
++        case 0x00200000:    // bit-21
++        pstcCanFDChMTTCAN->unIR.stcField.u1BEU = 1;
++        m_au16LastErrorCode[u8Idx] = 9;
++        break;
++
++        /* Error: Bit Error Corrected */
++        case 0x00100000:    // bit-20
++        pstcCanFDChMTTCAN->unIR.stcField.u1BEC = 1;
++        m_au16LastErrorCode[u8Idx] = 10;
++        break;
++
++        /* Error: Timeout Occurred */
++        case 0x00040000:    // bit-18
++        pstcCanFDChMTTCAN->unIR.stcField.u1TOO = 1;
++        m_au16LastErrorCode[u8Idx] = 11;
++        break;
++
++        /* Error: Message RAM Failure */
++        case 0x00020000:    // bit-17
++        pstcCanFDChMTTCAN->unIR.stcField.u1MRAF = 1;
++        m_au16LastErrorCode[u8Idx] = 12;
++        break;
++
++        /* Timestamp Wraparound */
++        case 0x00010000:    // bit-16
++        pstcCanFDChMTTCAN->unIR.stcField.u1TSW = 1;
++        m_au16LastErrorCode[u8Idx] = 13;
++        break;
++
++        default: // unhandled error
++        m_au16LastErrorCode[u8Idx] = 14;
++        break;
+     }
++    
++    if (pstcCanFDContext->canFDNotificationCb.canFDErrorInterruptFunction != NULL)
++        pstcCanFDContext->canFDNotificationCb.canFDErrorInterruptFunction(m_au16LastErrorCode[u8Idx]);
+ 
+     return;
+ 
+@@ -533,6 +595,8 @@ void Cy_CANFD_ExtractMsgFromRXBuffer(cy_stc_canfd_rx_buffer_t *pstcRxBufferAddr,
+ * Pointer to register area of a CAN FD channel.
+ *
+ *******************************************************************************/
++volatile uint32_t irq_error_interrupt_mask;
++volatile uint32_t irq_error_interrupt_status;
+ void Cy_CANFD_IrqHandler( cy_pstc_canfd_type_t pstcCanFD )
+ {
+     uint32_t*                       pu32Adrs = 0;
+@@ -542,6 +606,7 @@ void Cy_CANFD_IrqHandler( cy_pstc_canfd_type_t pstcCanFD )
+     cy_stc_canfd_context_t*         pstcCanFDContext;
+     uint8_t                         u8BufferSizeTemp = 0;
+     uint32_t                        au32RxBuf[18];
++    uint32_t irq_error_interrupt_enable_bits = 0x3FF70000;    
+     
+     /* Get pointer to internal data structure */
+     pstcCanFDContext = Cy_CANFD_GetContext(pstcCanFD);
+@@ -555,10 +620,16 @@ void Cy_CANFD_IrqHandler( cy_pstc_canfd_type_t pstcCanFD )
+     /* Get the pointer to M_TTCAN of the CAN FD channel */
+     pstcCanFDChMTTCAN = &pstcCanFD->M_TTCAN;
+ 
++    // find enabled interrupts
++    irq_error_interrupt_mask = pstcCanFD->M_TTCAN.unIE.u32Register & irq_error_interrupt_enable_bits;
++
++    // filter out status which isn't enabled
++    irq_error_interrupt_status = pstcCanFD->M_TTCAN.unIR.u32Register & irq_error_interrupt_mask;
++
+     /* Other than Tx/Rx interrupt occured */
+-    if (pstcCanFDChMTTCAN->unIR.u32Register & 0x3ff7E0EE)
++    if (irq_error_interrupt_status)
+     {
+-        Cy_CANFD_ErrorHandling(pstcCanFD);
++        Cy_CANFD_ErrorHandling(pstcCanFD, irq_error_interrupt_status);
+     }
+     
+     if(pstcCanFDChMTTCAN->unIR.stcField.u1DRX == 1)     // At least one received message stored into an Rx Buffer.
+@@ -787,6 +858,11 @@ cy_en_canfd_status_t Cy_CANFD_Init(cy_pstc_canfd_type_t pstcCanFD, const cy_stc_
+     un_CANFD_CH_ILS_t   unILS   = { 0 };
+     un_CANFD_CH_ILE_t   unILE   = { 0 };
+     un_CANFD_CH_RXFTOP_CTL_t unRXFTOP_CTL = { 0 };
++
++    un_CANFD_CH_TXBTIE_t unTXBTIE = { 0 };
++    un_CANFD_CH_TXBCIE_t unTXBCIE = { 0 };
++    un_CANFD_CH_TTIR_t unTTIR = { 0 };
++
+       
+     /* Check for NULL pointers */
+     if ( pstcCanFD  == NULL ||
+@@ -970,16 +1046,25 @@ cy_en_canfd_status_t Cy_CANFD_Init(cy_pstc_canfd_type_t pstcCanFD, const cy_stc_
+         pstcEXTIDFilter[u32Count] = pstcConfig->extidFilterConfig.extidFilter[u32Count];
+     }    
+     
++    unTXBTIE.stcField.u32TIE = 1;
++    pstcCanFDChMTTCAN->unTXBTIE = unTXBTIE;
++    
++    unTXBCIE.stcField.u32CFIE = 1;
++    pstcCanFDChMTTCAN->unTXBCIE = unTXBCIE;
++    
++    unTTIR.u32Register = 0;
++    pstcCanFDChMTTCAN->unTTIR = unTTIR;
++
+     /* Configuration of Interrupt */
+     /* Interrupt Enable */
+     unIE.stcField.u1ARAE  = 0; /* Access to Reserved Address */
+     unIE.stcField.u1PEDE  = 0; /* Protocol Error in Data Phase */
+     unIE.stcField.u1PEAE  = 0; /* Protocol Error in Arbitration Phase */
+     unIE.stcField.u1WDIE  = 0; /* Watchdog */
+-    unIE.stcField.u1BOE   = 0; /* Bus_Off Status */
++    unIE.stcField.u1BOE   = 1; /* Bus_Off Status */
+     unIE.stcField.u1EWE   = 0; /* Warning Status */
+-    unIE.stcField.u1EPE   = 0; /* Error Passive */
+-    unIE.stcField.u1ELOE  = 0; /* Error Logging Overflow */
++    unIE.stcField.u1EPE   = 1; /* Error Passive */
++    unIE.stcField.u1ELOE  = 0; /* Earror Logging Overflow */
+     unIE.stcField.u1BEUE  = 0; /* Bit Error Uncorrected */
+     unIE.stcField.u1BECE  = 0; /* Bit Error Corrected */
+     unIE.stcField.u1DRXE  = 1; /* Message stored to Dedicated Rx Buffer */
+@@ -992,7 +1077,7 @@ cy_en_canfd_status_t Cy_CANFD_Init(cy_pstc_canfd_type_t pstcCanFD, const cy_stc_
+     unIE.stcField.u1TEFNE = 0; /* Tx Event FIFO New Entry */
+     unIE.stcField.u1TFEE  = 0; /* Tx FIFO Empty */
+     unIE.stcField.u1TCFE  = 0; /* Transmission Cancellation Finished */
+-    unIE.stcField.u1TCE   = 0; /* Transmission Completed */
++    unIE.stcField.u1TCE   = 1; /* Transmission Completed */
+     unIE.stcField.u1HPME  = 0; /* High Priority Message */
+     unIE.stcField.u1RF1LE = 0; /* Rx FIFO 1 Message Lost */
+     unIE.stcField.u1RF1FE = 0; /* Rx FIFO 1 Full */
+diff --git a/platform/Infineon/cyt2b75/sdk/common/src/drivers/scb/cy_scb_spi.c b/platform/Infineon/cyt2b75/sdk/common/src/drivers/scb/cy_scb_spi.c
+index 411ec11..a946aa6 100644
+--- a/platform/Infineon/cyt2b75/sdk/common/src/drivers/scb/cy_scb_spi.c
++++ b/platform/Infineon/cyt2b75/sdk/common/src/drivers/scb/cy_scb_spi.c
+@@ -231,7 +231,10 @@ void Cy_SCB_SPI_DeInit(volatile stc_SCB_t *base)
+ *******************************************************************************/
+ void Cy_SCB_SPI_Disable(volatile stc_SCB_t *base, cy_stc_scb_spi_context_t *context)
+ {
+-    base->unCTRL.u32Register = 0ul;
++    // base->unCTRL.u32Register = 0ul;
++    base->unCTRL.stcField.u1ENABLED = false;
++
++
+ 
+     if (NULL != context)
+     {
+diff --git a/platform/Infineon/cyt2b75/sdk/common/src/drivers/tcpwm/cy_tcpwm_counter.c b/platform/Infineon/cyt2b75/sdk/common/src/drivers/tcpwm/cy_tcpwm_counter.c
+index 0d0a8a1..409861c 100644
+--- a/platform/Infineon/cyt2b75/sdk/common/src/drivers/tcpwm/cy_tcpwm_counter.c
++++ b/platform/Infineon/cyt2b75/sdk/common/src/drivers/tcpwm/cy_tcpwm_counter.c
+@@ -41,10 +41,10 @@ uint32_t Cy_Tcpwm_Counter_Init(volatile stc_TCPWM_GRP_CNT_t *ptscTCPWM, cy_stc_t
+ {
+     uint32_t status = CY_RET_BAD_PARAM;
+ 
+-    if (config->trigger0EventCfg > 0x04ul || config->trigger1EventCfg > 0x04ul)
+-    {
+-        return status;
+-    }    
++    // if (config->trigger0EventCfg > 0x04ul || config->trigger1EventCfg > 0x04ul)
++    // {
++    //     return status;
++    // }    
+ 
+     if ((NULL != ptscTCPWM) && (NULL != config))
+     {
+diff --git a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/interrupts/rev_d/cy_interrupt_map.c b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/interrupts/rev_d/cy_interrupt_map.c
+index 7932a45..b442754 100644
+--- a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/interrupts/rev_d/cy_interrupt_map.c
++++ b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/interrupts/rev_d/cy_interrupt_map.c
+@@ -406,9 +406,20 @@ void Cy_DefaultUserHandler(void)
+     while(1);
+ }
+ 
++CY_WEAK void asdk_cpu_interrupt_prologue()
++{
++
++}
++
++CY_WEAK void asdk_cpu_interrupt_epilogue()
++{
++
++}
+ 
+ void CpuUserInt0_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT0_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -428,11 +439,15 @@ void CpuUserInt0_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx0_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt1_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT1_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -452,11 +467,15 @@ void CpuUserInt1_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx1_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt2_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT2_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -476,11 +495,15 @@ void CpuUserInt2_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx2_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt3_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT3_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -500,11 +523,15 @@ void CpuUserInt3_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx3_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt4_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT4_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -524,11 +551,15 @@ void CpuUserInt4_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx4_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt5_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT5_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -548,11 +579,15 @@ void CpuUserInt5_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx5_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt6_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT6_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -572,11 +607,15 @@ void CpuUserInt6_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx6_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+ void CpuUserInt7_Handler(void)
+ {
++    asdk_cpu_interrupt_prologue();
++
+     un_CPUSS_CM0_INT7_STATUS_t system_int_status = {0};
+ 
+ #if CY_CPU_CORTEX_M0P
+@@ -596,6 +635,8 @@ void CpuUserInt7_Handler(void)
+     }
+     
+     NVIC_ClearPendingIRQ(CPUIntIdx7_IRQn);
++
++    asdk_cpu_interrupt_epilogue();
+ }
+ 
+ 
+diff --git a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm0plus.c b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm0plus.c
+index 4e67941..d258aa1 100644
+--- a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm0plus.c
++++ b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm0plus.c
+@@ -191,13 +191,14 @@ void SystemInit (void)
+ * Updates variables with current clock settings
+ *
+ *******************************************************************************/
++extern uint32_t cyt2b75_clock_frequency;
+ void SystemCoreClockUpdate (void)
+ {
+     cy_stc_base_clk_freq_t freqInfo = 
+     {
+         .clk_imo_freq  = CY_CLK_IMO_FREQ_HZ,
+         .clk_ext_freq  = CY_CLK_EXT_FREQ_HZ,
+-        .clk_eco_freq  = CY_CLK_ECO_FREQ_HZ,
++        .clk_eco_freq  = cyt2b75_clock_frequency,
+         .clk_ilo0_freq = CY_CLK_HVILO0_FREQ_HZ,
+         .clk_ilo1_freq = CY_CLK_HVILO1_FREQ_HZ,
+         .clk_wco_freq  = CY_CLK_WCO_FREQ_HZ,
+diff --git a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm4.c b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm4.c
+index af05896..ee7d318 100644
+--- a/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm4.c
++++ b/platform/Infineon/cyt2b75/sdk/tviibe1m/src/system/rev_d/system_tviibe1m_cm4.c
+@@ -57,13 +57,14 @@ void SystemInit (void)
+ * Updates variables with current clock settings
+ *
+ *******************************************************************************/
++extern uint32_t cyt2b75_clock_frequency;
+ void SystemCoreClockUpdate (void)
+ {
+     cy_stc_base_clk_freq_t freqInfo = 
+     {
+         .clk_imo_freq  = CY_CLK_IMO_FREQ_HZ,
+         .clk_ext_freq  = CY_CLK_EXT_FREQ_HZ,
+-        .clk_eco_freq  = CY_CLK_ECO_FREQ_HZ,
++        .clk_eco_freq  = cyt2b75_clock_frequency,
+         .clk_ilo0_freq = CY_CLK_HVILO0_FREQ_HZ,
+         .clk_ilo1_freq = CY_CLK_HVILO1_FREQ_HZ,
+         .clk_wco_freq  = CY_CLK_WCO_FREQ_HZ,
