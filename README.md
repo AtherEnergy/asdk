@@ -62,7 +62,7 @@ The following versions have been tested and are recommended for best results:
 Clone ASDK to your local machine:
 
 ```
-git clone https://github.com/AtherEnergy/asdk.git
+git clone -b platform/stm32f4 https://github.com/AtherEnergy/asdk.git
 cd asdk
 ```
 
