@@ -58,6 +58,7 @@ g_arg_parser = object()
 g_mcu_choices = [
     "cyt2b75_m0plus", 
     "cyt2b75_m4",
+    "stm32f4"
 ]
 
 g_preset_choices = [
@@ -78,6 +79,7 @@ g_preset_choices = [
 
 g_cmake_args = [
     "{0}",
+    "-S .",
     "-B {1}",
     "-G Ninja",
     "-DCMAKE_MAKE_PROGRAM={2}",

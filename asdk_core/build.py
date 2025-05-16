@@ -37,13 +37,14 @@ g_arg_parser = object()
 g_mcu_choices = [
     "cyt2b75_m0plus", 
     "cyt2b75_m4", 
-    "c2000"
+    "stm32f4",
 ]
 
 # build command templates
 
 g_cmake_args = [
     "{0}",
+    "-S .",
     "-B {1}",
     "-G Ninja",
     "-DCMAKE_MAKE_PROGRAM={2}",
@@ -102,7 +103,7 @@ def _parse_args():
     else:
         g_parsed_args = g_arg_parser.parse_args()
 
-    if ("Current working directory" not in g_parsed_args.build):
+    if (g_parsed_args.build is not None):
         g_users_build_dir = os.path.join(g_parsed_args.build, g_parsed_args.type.lower())
     else:
         g_users_build_dir = os.path.join(g_users_build_dir, g_parsed_args.type.lower())
