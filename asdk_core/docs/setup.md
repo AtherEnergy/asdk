@@ -10,19 +10,17 @@ python setup.py --help
 
 Output:
 ```sh
-usage: setup.py [-h] [-p] [--arm-version  | --c2000-version ] [-f]
+usage: setup.py [-h] -p  [--arm-version ] [-f]
 
-optional arguments:
+options:
   -h, --help        show this help message and exit
-  -p , --platform   Install platform-specific toolchain. Allowed values: arm,
-                    c2000 (default: arm)
-  --arm-version     ARM toolchain version. Allowed values: [gcc-arm-none-
-                    eabi-7-2018-q2-update] (default: gcc-arm-none-
-                    eabi-7-2018-q2-update)
-  --c2000-version   TI C2000 toolchain version. Allowed values: [None]
-                    (default: None)
+  --arm-version     ARM toolchain version
+                    Allowed values: [gcc-arm-none-eabi-7-2018-q2-update]
   -f, --force       Force install if the specified tools already installed.
-                    (default: False)
+
+required named arguments:
+  -p , --platform   Install platform-specific toolchain.
+                    Allowed values: [arm]
 ```
 
 > The default platform is `arm` with `gcc-arm-none-eabi-7-2018-q2-update` toolchain version if the user doesn't specify any arguments.

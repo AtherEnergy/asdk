@@ -10,6 +10,7 @@
 **/release/
 **/debug/
 common/
+doxygen_output/
 
 # Infineon cyt2b75 SDK directory
 platform/Infineon/cyt2b75/sdk/
