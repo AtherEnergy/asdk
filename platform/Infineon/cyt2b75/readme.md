@@ -6,6 +6,9 @@ This guide provides step-by-step instructions to set up the Infineon CYT2B75 pla
 
 - Download the T2G Sample Driver Library [v7.8.0](https://itoolspriv.infineon.com/itbhs/api/packages/com.ifx.tb.tool.traveoiisampledriverlibrary/Versions/7.8.0/artifacts/sdl_installer_v7.8.0_w_ex_control_txt.zip/download).
 - Run the installer and use the default installation options. The default path is `C:\Program Files (x86)\Infineon\T2G_Sample_Driver_Library_7.8.0`
+
+    > [!Note]
+    > You may use wine to run the `.exe` installer on Ubuntu and MacOs
     
     <img src="../../../asdk_core/docs/resources/images/platform/Infineon/cyt2b75/driver_installation.png" alt="Driver Installation" style="width:50%; min-width:200px; max-width:600px;" />
 
@@ -26,11 +29,11 @@ This guide provides step-by-step instructions to set up the Infineon CYT2B75 pla
 - Run the appropriate patch script for your operating system:
     - **Windows:**
         ```cmd
-        app_patch.bat
+        apply_patch.bat
         ```
     - **Ubuntu/macOS:**
         ```sh
-        ./app_patch.sh
+        ./apply_patch.sh
         ```
 
     <details>

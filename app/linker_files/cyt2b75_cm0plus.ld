@@ -206,7 +206,7 @@ SECTIONS
      * can be correctly calculated and startup code will not ECC initialize the RAM area occupied by the .data section (since its content
 
      * would have been loaded by the debugger already). In case of _LINK_flash the '.data' section can be arbitrarily placed in RAM. */
-    .data : ALIGN_WITH_INPUT
+    .data : ALIGN(4)
     {
         . = ALIGN(8);
         *(.data*)
