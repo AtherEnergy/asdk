@@ -85,17 +85,26 @@ function(ASDK_COMPILE_APPLICATION)
             asdk
     )
 
+
+    ### run CRC verification tool
+    ADD_CUSTOM_COMMAND(
+        TARGET ${ARG_APP_ELF} POST_BUILD
+        COMMAND ${USER_ROOT_DIR}/platform/TI/cc2745/sdk/tools/common/crc_tool/crc_tool patch-image --elf $<TARGET_FILE:${ARG_APP_ELF}> --symbol-prefix ti_utils_build_GenMap_sym_CRC --output $<TARGET_FILE:${ARG_APP_ELF}>
+        COMMENT "Running CRC Tool"
+        VERBATIM
+    )
+
     ### generate srec and hex files
 
     # srec generation
 
-    add_custom_command(
-        TARGET      ${ARG_APP_ELF}
-        POST_BUILD
-        COMMAND     ${CMAKE_COMPILER_PATH}objcopy
-        ARGS        -O srec ${CMAKE_BINARY_DIR}/${ARG_APP_ELF} ${CMAKE_BINARY_DIR}/${APP_ELF_NAME}.srec
-        BYPRODUCTS  ${CMAKE_BINARY_DIR}/${${ARG_APP_ELF}}.srec
-    )
+    # add_custom_command(
+    #     TARGET      ${ARG_APP_ELF}
+    #     POST_BUILD
+    #     COMMAND     ${CMAKE_COMPILER_PATH}objcopy
+    #     ARGS        -O srec ${CMAKE_BINARY_DIR}/${ARG_APP_ELF} ${CMAKE_BINARY_DIR}/${APP_ELF_NAME}.srec
+    #     BYPRODUCTS  ${CMAKE_BINARY_DIR}/${${ARG_APP_ELF}}.srec
+    # )
 
     # hex file generation
 

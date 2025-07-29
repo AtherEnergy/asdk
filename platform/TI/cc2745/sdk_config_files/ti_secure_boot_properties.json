@@ -1,0 +1,10 @@
+ {
+    "sbEnabled" : "False",
+    "hdrSize" : "0x80",
+    "slotSize" : "0x0",
+    "version" : "1.0",
+    "imgType" : "0x0",
+    "secCnt" : 0,
+    "romFixed" : "0x0",
+    "key": ""
+ }

@@ -18,9 +18,13 @@ IF(${TARGET_PLATFORM} STREQUAL "CYT2B75_M0PLUS")
     SET(APP_LINKER_FILE
         ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/cyt2b75_cm0plus.ld
     )
-ELSE()
+ELSEIF(${TARGET_PLATFORM} STREQUAL "CYT2B75_M4")
     SET(APP_LINKER_FILE
         ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/cyt2b75_cm4.ld
+    )
+ELSEIF(${TARGET_PLATFORM} STREQUAL "CC2745")
+    SET(APP_LINKER_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/lpf3_freertos.cmd
     )
 ENDIF()
 
