@@ -35,8 +35,8 @@
 #include <dpl/TaskP_freertos.c>
 #include <dpl/ClockPLPF3_freertos.c>
 #include <dpl/HwiPCC27XX_freertos.c>
-#include <dpl/PowerCC27XX_freertos.c>
 #include <dpl/TimestampPLPF3_freertos.c>
+#include <dpl/PowerCC27XX_freertos.c>
 #include <startup/startup_cc27xx_ticlang.c>
 
 /* C files contributed by /freertos/exception */

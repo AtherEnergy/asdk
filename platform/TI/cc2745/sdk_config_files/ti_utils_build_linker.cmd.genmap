@@ -18,8 +18,6 @@ ti_utils_build_GenMap_sym_CRC_CCFG_DEBUG_begin = 0x4e0207d0;
 ti_utils_build_GenMap_sym_CRC_CCFG_DEBUG_end = 0x4e0207fb;
 ti_utils_build_GenMap_sym_CRC_SCFG_begin = 0x4e040000;
 ti_utils_build_GenMap_sym_CRC_SCFG_end = 0x4e0400e3;
-ti_utils_build_GenMap_sym_CRC_CCFG_USER_RECORD_begin = 0x4e020750;
-ti_utils_build_GenMap_sym_CRC_CCFG_USER_RECORD_end = 0x4e0207cb;
 
 /* definitions provided by /ti/devices/DriverLib */
 #define ti_utils_build_GenMap_FLASH0_SIZE 0x100000
@@ -30,6 +28,6 @@ ti_utils_build_GenMap_sym_CRC_CCFG_USER_RECORD_end = 0x4e0207cb;
 #define ti_utils_build_GenMap_CCFG_SIZE 0x800
 #define ti_utils_build_GenMap_SCFG_BASE 0x4e040000
 #define ti_utils_build_GenMap_SCFG_SIZE 0x400
-#define ti_utils_build_GenMap_HSM_FW_SIZE 0x18000
+#define ti_utils_build_GenMap_HSM_FW_BASE 0xe8000
 #define ti_utils_build_GenMap_FLASH0_BASE 0x0
 #define ti_utils_build_GenMap_RAM0_BASE 0x20000000

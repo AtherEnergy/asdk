@@ -87,12 +87,12 @@ function(ASDK_COMPILE_APPLICATION)
 
 
     ### run CRC verification tool
-    ADD_CUSTOM_COMMAND(
-        TARGET ${ARG_APP_ELF} POST_BUILD
-        COMMAND ${USER_ROOT_DIR}/platform/TI/cc2745/sdk/tools/common/crc_tool/crc_tool patch-image --elf $<TARGET_FILE:${ARG_APP_ELF}> --symbol-prefix ti_utils_build_GenMap_sym_CRC --output $<TARGET_FILE:${ARG_APP_ELF}>
-        COMMENT "Running CRC Tool"
-        VERBATIM
-    )
+    # ADD_CUSTOM_COMMAND(
+    #     TARGET ${ARG_APP_ELF} POST_BUILD
+    #     COMMAND ${USER_ROOT_DIR}/platform/TI/cc2745/sdk/tools/common/crc_tool/crc_tool patch-image --elf $<TARGET_FILE:${ARG_APP_ELF}> --symbol-prefix ti_utils_build_GenMap_sym_CRC --output $<TARGET_FILE:${ARG_APP_ELF}>
+    #     COMMENT "Running CRC Tool"
+    #     VERBATIM
+    # )
 
     ### generate srec and hex files
 

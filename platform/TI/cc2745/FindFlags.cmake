@@ -23,7 +23,7 @@ set(CC2745_C_COMPILER_OPTIONS
     -MF
     -MT
     -c
-    # -v
+    -v
 )
 
 set(CC2745_LINKER_OPTIONS
@@ -32,7 +32,7 @@ set(CC2745_LINKER_OPTIONS
     -mfloat-abi=hard
     -mfpu=fpv5-sp-d16 
     -mlittle-endian
-    # -v
+    -v
 )
 
 ##### define linker flags
@@ -41,7 +41,7 @@ set(CC2745_APP_LINK_FLAGS
     ${CC2745_LINKER_OPTIONS}
     -Wl,-m=${APP_ELF_NAME}.map
     -Wl,-I${CMAKE_CURRENT_SOURCE_DIR}/sdk/source
-    -Wl,-I${CMAKE_CURRENT_SOURCE_DIR}/generated_files
+    -Wl,-I${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files
     -Wl,-I$ENV{ASDK_TIARMCLANG_TOOLCHAIN_ROOT}/$ENV{ASDK_TIARMCLANG_TOOLCHAIN_VERSION}/lib
     -Wl,--diag_wrap=off
     -Wl,--display_error_number

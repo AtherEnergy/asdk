@@ -10,10 +10,6 @@
 #include <ti/devices/DeviceFamily.h>
 #include DeviceFamily_constructPath(inc/hw_ccfg.h)
 #include DeviceFamily_constructPath(inc/hw_scfg.h)
-
-#define SCFG_INVALID_KEY_ENTRY \
-        .type = 0, .keyHash = {0}, .crc32 = 0, .status = 0,
-
 extern void (*const resetVectors[])(void);
 
 #if defined(__IAR_SYSTEMS_ICC__)
@@ -42,7 +38,8 @@ const ccfg_t ccfg __attribute__((section(".ccfg"), used)) =
      * post-build step, or by the flashloader).
      */
     .bootCfg.crc32 = 0x00000000,
-    .hwOpts = {0xFFFFFFFF, 0xFFFFFFFF},
+
+    .res0 = {0xFFFFFFFF, 0xFFFFFFFF},
 
     .permissions.allowDebugPort = CCFG_PERMISSION_ALLOW,
     .permissions.allowEnergyTrace = CCFG_PERMISSION_ALLOW,
@@ -74,7 +71,7 @@ const ccfg_t ccfg __attribute__((section(".ccfg"), used)) =
     .flashProt.chipEraseRetain.mainSectors32_255 = 0x0,
     .flashProt.chipEraseRetain.mainSectors256_511 = 0xfc000000,
 
-    /* Set to 0. This checksum (across hwOpts through hwInitCopyList) must be
+    /* Set to 0. This checksum (after bootCfg through hwInitCopyList) must be
      * calculated and updated prior to programming the application to the device
      * (this is normally handled as a post-build step, or by the flashloader).
      */

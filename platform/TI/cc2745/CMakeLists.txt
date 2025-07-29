@@ -13,7 +13,7 @@ INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/FindFlags.cmake)
 SET(SDK_INC "")
 
 ## add necessary SDK files
-LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/generated_files)
+LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/freertos)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/third_party/freertos/include)
@@ -74,12 +74,9 @@ LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/nvs/NVSLPF
 LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/power/PowerCC27XX.c)
 LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/power/PowerCC27XX_lfoscCompensation.c)
 
-FILE(GLOB_RECURSE GEN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/generated_files/*.c)
+FILE(GLOB_RECURSE GEN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/*.c)
 FILE(GLOB_RECURSE DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/devices/cc27xx/driverlib/*.c)
-MESSAGE("DEV SRC Before\n" ${DEV_SRC})
 LIST(FILTER DEV_SRC EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/devices/cc27xx/driverlib/.*_veneers.c)
-
-MESSAGE("DEV SRC After\n" ${DEV_SRC})
 
 LIST(APPEND SRC_LIST
     ${GEN_SRC}
