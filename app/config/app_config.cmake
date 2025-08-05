@@ -12,6 +12,10 @@ SET(APP_ELF_NAME "asdk_app")
 
 SET(APP_VERSION_FILEPATH ${CMAKE_CURRENT_SOURCE_DIR}/version.txt)
 
+### add user defines
+
+SET(APP_USER_DEFINES -Dnortos)
+
 ### configure LD file
 
 IF(${TARGET_PLATFORM} STREQUAL "CYT2B75_M0PLUS")
@@ -22,9 +26,13 @@ ELSEIF(${TARGET_PLATFORM} STREQUAL "CYT2B75_M4")
     SET(APP_LINKER_FILE
         ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/cyt2b75_cm4.ld
     )
-ELSEIF(${TARGET_PLATFORM} STREQUAL "CC2745")
+ELSEIF((${TARGET_PLATFORM} STREQUAL "CC2745") AND ("${APP_USER_DEFINES}" STREQUAL "-Dfreertos"))
     SET(APP_LINKER_FILE
-    ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/lpf3_freertos.cmd
+        ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/lpf3_freertos.cmd
+    )
+ELSEIF((${TARGET_PLATFORM} STREQUAL "CC2745") AND ("${APP_USER_DEFINES}" STREQUAL "-Dnortos"))
+    SET(APP_LINKER_FILE
+        ${CMAKE_CURRENT_SOURCE_DIR}/app/linker_files/lpf3_nortos.cmd
     )
 ENDIF()
 
@@ -33,6 +41,7 @@ ENDIF()
 SET(APP_USER_INC 
     ${CMAKE_CURRENT_SOURCE_DIR}/app
     # add other include paths from here
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/boards
 )
 
 AUX_SOURCE_DIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/app APP_USER_SRC)

@@ -8,6 +8,8 @@ MESSAGE("CC2745_CORE: ${CC2745_CORE}")
 
 SET(CC2745_DEFS
     -DDeviceFamily_CC27XX
+    -DCC2745_LAUNCHPAD
+    -DCC2745R10
 )
 
 ##### define compiler flags
@@ -23,7 +25,7 @@ set(CC2745_C_COMPILER_OPTIONS
     -MF
     -MT
     -c
-    -v
+    # -v
 )
 
 set(CC2745_LINKER_OPTIONS
@@ -32,7 +34,7 @@ set(CC2745_LINKER_OPTIONS
     -mfloat-abi=hard
     -mfpu=fpv5-sp-d16 
     -mlittle-endian
-    -v
+    # -v
 )
 
 ##### define linker flags
@@ -48,5 +50,11 @@ set(CC2745_APP_LINK_FLAGS
     -Wl,--warn_sections
     -Wl,--xml_link_info="${ARG_APP_ELF}_linkInfo.xml"
     -Wl,--rom_model
-    ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/boards/lpf3/lpf3_freertos.cmd
 )
+
+IF((${TARGET_PLATFORM} STREQUAL "CC2745") AND ("${APP_USER_DEFINES}" STREQUAL "-Dfreertos"))
+    LIST(APPEND CC2745_APP_LINK_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/boards/lpf3/lpf3_freertos.cmd)
+ELSEIF((${TARGET_PLATFORM} STREQUAL "CC2745") AND ("${APP_USER_DEFINES}" STREQUAL "-Dnortos"))
+    LIST(APPEND CC2745_APP_LINK_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/boards/lpf3/lpf3_nortos.cmd)
+ENDIF()
+

@@ -12,6 +12,7 @@ function(ASDK_COMPILE_APPLICATION)
         APP_INC
         APP_USER_SRC
         APP_USER_INC
+        APP_USER_DEFINES
         USER_LINKER_OPTIONS
     )
 
@@ -85,14 +86,22 @@ function(ASDK_COMPILE_APPLICATION)
             asdk
     )
 
+    # add user defines
+
+    TARGET_COMPILE_DEFINITIONS(
+        ${ARG_APP_ELF}
+        PRIVATE
+            ${ARG_APP_USER_DEFINES}
+    )
 
     ### run CRC verification tool
-    # ADD_CUSTOM_COMMAND(
-    #     TARGET ${ARG_APP_ELF} POST_BUILD
-    #     COMMAND ${USER_ROOT_DIR}/platform/TI/cc2745/sdk/tools/common/crc_tool/crc_tool patch-image --elf $<TARGET_FILE:${ARG_APP_ELF}> --symbol-prefix ti_utils_build_GenMap_sym_CRC --output $<TARGET_FILE:${ARG_APP_ELF}>
-    #     COMMENT "Running CRC Tool"
-    #     VERBATIM
-    # )
+    
+    ADD_CUSTOM_COMMAND(
+        TARGET ${ARG_APP_ELF} POST_BUILD
+        COMMAND ${USER_ROOT_DIR}/platform/TI/cc2745/sdk/tools/common/crc_tool/crc_tool patch-image --elf $<TARGET_FILE:${ARG_APP_ELF}> --symbol-prefix ti_utils_build_GenMap_sym_CRC --output $<TARGET_FILE:${ARG_APP_ELF}>
+        COMMENT "Running CRC Tool"
+        VERBATIM
+    )
 
     ### generate srec and hex files
 

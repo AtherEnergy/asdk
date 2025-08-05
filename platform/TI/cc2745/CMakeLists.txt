@@ -14,13 +14,20 @@ SET(SDK_INC "")
 
 ## add necessary SDK files
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files)
-LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/freertos)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/third_party/freertos/include)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/third_party/freertos/portable/GCC/ARM_CM33_NTZ/non_secure)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/posix/ticlang)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/devices)
 LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk)
+
+IF("${APP_USER_DEFINES}" STREQUAL "-Dfreertos")
+    LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/freertos)
+    LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/FreeRTOSConfig.h)
+ELSEIF("${APP_USER_DEFINES}" STREQUAL "-Dnortos")
+    LIST(APPEND SDK_INC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos)
+    LIST(FILTER SDK_INC EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/FreeRTOSConfig.h)
+ENDIF()
 
 SET(DRV_SRC "")
 LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/apps/Button.c)
@@ -74,12 +81,32 @@ LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/nvs/NVSLPF
 LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/power/PowerCC27XX.c)
 LIST(APPEND DRV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/drivers/power/PowerCC27XX_lfoscCompensation.c)
 
-FILE(GLOB_RECURSE GEN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/*.c)
+FILE(GLOB_RECURSE SDK_CFG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/*.c)
 FILE(GLOB_RECURSE DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/devices/cc27xx/driverlib/*.c)
 LIST(FILTER DEV_SRC EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/sdk/source/ti/devices/cc27xx/driverlib/.*_veneers.c)
 
+IF("${APP_USER_DEFINES}" STREQUAL "-Dfreertos")
+    LIST(APPEND SDK_CFG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/ti_freertos_config.c)
+ELSEIF("${APP_USER_DEFINES}" STREQUAL "-Dnortos")
+    LIST(FILTER SDK_CFG_SRC EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/ti_freertos_config.c)
+    LIST(FILTER SDK_CFG_SRC EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/sdk_config_files/ti_freertos_portable_config.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/NoRTOS.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/posix_sleep.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/DebugP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/MutexP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/SemaphoreP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/SwiP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/SystemP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/ClockPLPF3_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/TimestampPLPF3_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/QueueP_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/HwiPCC27XX_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/dpl/PowerCC27XX_nortos.c)
+    LIST(APPEND DEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/sdk/kernel/nortos/startup/startup_cc27xx_ticlang.c) 
+ENDIF()
+
 LIST(APPEND SRC_LIST
-    ${GEN_SRC}
+    ${SDK_CFG_SRC}
     ${DEV_SRC}
     ${DRV_SRC}
 )
@@ -127,7 +154,6 @@ TARGET_LINK_LIBRARIES(
     cc2745_sdk
     INTERFACE # hidden from application
         cc2745_sdk_interface # use platform compile options
-        # -lti_utils_build_linker.cmd.genlibs
         -llibc.a)
 
 ### Compile DAL 
@@ -137,6 +163,8 @@ SET(
     ${CMAKE_CURRENT_SOURCE_DIR}/dal/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../inc
 )
+
+MESSAGE("\n \n DAL_INC \n" ${DAL_INC})
 
 AUX_SOURCE_DIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/dal/src DAL_SRC)
 
