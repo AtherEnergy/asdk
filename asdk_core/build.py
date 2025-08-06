@@ -23,6 +23,8 @@ g_asdk_install_script = os.path.join(
     g_current_src_path, "asdk_core", "setup", "setup.py")
 g_arm_toolchain_dir = os.path.join(
     g_current_src_path, "cmake", "devel_arm_eabi_toolchain.cmake")
+g_tiarmclang_toolchain_dir = os.path.join(
+    g_current_src_path, "asdk_core", "cmake", "devel_tiarmclang_toolchain.cmake")
 g_rtos = "uCOS3"
 g_build_choices = ["release", "debug"]
 
@@ -38,6 +40,7 @@ g_mcu_choices = [
     "cyt2b75_m0plus", 
     "cyt2b75_m4", 
     "c2000"
+    "cc2745"
 ]
 
 # build command templates
@@ -158,16 +161,26 @@ def _clean():
 
 def _generate_build_cmd():
     build_cmd = " ".join(each for each in g_cmake_args)
-
-    build_cmd = build_cmd.format(
-        g_cmake,
-        g_users_build_dir,
-        g_ninja,
-        g_arm_toolchain_dir,
-        g_parsed_args.platform.upper(),
-        g_parsed_args.type.upper(),
-        g_rtos.upper()
-    )
+    if(g_parsed_args.platform == "cc2745"):
+        build_cmd = build_cmd.format(
+            g_cmake,
+            g_users_build_dir,
+            g_ninja,
+            g_tiarmclang_toolchain_dir,
+            g_parsed_args.platform.upper(),
+            g_parsed_args.type.upper(),
+            g_rtos.upper()
+        )
+    else:
+        build_cmd = build_cmd.format(
+            g_cmake,
+            g_users_build_dir,
+            g_ninja,
+            g_arm_toolchain_dir,
+            g_parsed_args.platform.upper(),
+            g_parsed_args.type.upper(),
+            g_rtos.upper()
+        )
     
     return build_cmd
 
