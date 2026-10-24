@@ -92,7 +92,7 @@ typedef enum
     ASDK_SYS_RESET_OVDVCCD,     /*!< Reset due to over voltage detection on the internal core VCCD supply */
     ASDK_SYS_RESET_BODVDDA,     /*!< Reset due to external VDDA supply crossed the brown-out limit */
     ASDK_SYS_RESET_BODVCCD,     /*!< Reset due to internal VCCD core supply crossed the brown-out limit */
-    ASDK_SYS_RESET_DPSLP_FAULT, /*!< he fault logging system requested a reset from its DeepSleep logic */
+    ASDK_SYS_RESET_DPSLP_FAULT, /*!< The fault logging system requested a reset from its DeepSleep logic */
     ASDK_SYS_RESET_PXRES,       /*!< Programmable XRES triggered */
     ASDK_SYS_REST_STRUCT_XRES,  /*!< Structural reset was asserted */
     ASDK_SYS_RESET_UNKNOWN,     /*!< Other reason, please refer to platform. */

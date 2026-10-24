@@ -152,7 +152,7 @@ void SCB_Set_ISR(uint8_t scb_index, scb_user_cb_type user_callback, uint8_t inte
         .isEnabled  = true,
     };
 
-    // todo: directly assing ISR from parameter
+    // todo: directly assign ISR from parameter
     if (user_callback != NULL)
         scb_user_callback[scb_index] = user_callback;
 

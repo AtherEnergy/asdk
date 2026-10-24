@@ -96,11 +96,11 @@ typedef enum
     MCU_PIN_43,     /*!< Microcontroller's Pin 43 */
     MCU_PIN_44,     /*!< Microcontroller's Pin 44 */
 
-    MCU_PIN_45,     /*!< Microcontroller's Pin 24 */
-    MCU_PIN_46,     /*!< Microcontroller's Pin 25 */
-    MCU_PIN_47,     /*!< Microcontroller's Pin 26 */
-    MCU_PIN_48,     /*!< Microcontroller's Pin 27 */
-    MCU_PIN_49,     /*!< Microcontroller's Pin 28 */
+    MCU_PIN_45,     /*!< Microcontroller's Pin 45 */
+    MCU_PIN_46,     /*!< Microcontroller's Pin 46 */
+    MCU_PIN_47,     /*!< Microcontroller's Pin 47 */
+    MCU_PIN_48,     /*!< Microcontroller's Pin 48 */
+    MCU_PIN_49,     /*!< Microcontroller's Pin 49 */
 
     MCU_PIN_50,     /*!< Microcontroller's Pin 50 */
     MCU_PIN_51,     /*!< Microcontroller's Pin 51 */

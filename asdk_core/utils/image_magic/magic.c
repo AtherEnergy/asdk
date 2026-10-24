@@ -1,7 +1,7 @@
 /**************************************************************************
  * @file     magic.c
  * @brief    This file does two actions:
- *             1. Apend a magic number at the end of the file
+ *             1. Append a magic number at the end of the file
  *             2. Make input file aligned with 256 bytes
  *           Info appended at the end of file
  * Author    Mahadeva HN

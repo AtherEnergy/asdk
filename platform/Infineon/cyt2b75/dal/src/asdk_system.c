@@ -202,7 +202,7 @@ asdk_sys_reset_t asdk_sys_get_reset_reason(void)
         reason = ASDK_SYS_RESET_OVDVDDD;
         break;
 
-    /* Reset due to over voltage detection on the external VDDA supply.. */
+    /* Reset due to over voltage detection on the external VDDA supply. */
     case CY_SYSRESET_OVDVDDA:
         reason = ASDK_SYS_RESET_OVDVDDA;
         break;
